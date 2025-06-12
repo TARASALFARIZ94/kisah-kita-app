@@ -1,0 +1,119 @@
+### GET all users
+GET http://localhost:3000/api/user
+Accept: application/json
+
+###
+
+### GET user by ID
+GET http://localhost:3000/api/user
+Accept: application/json
+
+{
+  "id": 1
+}
+
+###
+
+### CREATE user
+POST http://localhost:3000/api/user
+Content-Type: application/json
+
+{
+  "name": "Nasywa Adita",
+  "email": "nasywa@example.com",
+  "password": "rahasia123",
+  "role": "USER"
+}
+
+###
+
+### UPDATE user
+PUT http://localhost:3000/api/user
+Content-Type: application/json
+
+{
+  "id": 1,
+  "name": "Nasywa Zain",
+  "email": "nasywa@example.com",
+  "password": "rahasiaBaru",
+  "role": "USER"
+}
+
+###
+
+### DELETE user
+DELETE http://localhost:3000/api/user
+Content-Type: application/json
+
+{
+  "id": 1
+}
+
+###
+
+### GET all trips
+GET http://localhost:3000/api/trip
+
+###
+
+### POST new trip
+POST http://localhost:3000/api/trip
+Content-Type: application/json
+
+{
+  "userId": 1,
+  "title": "Trip ke Malioboro",
+  "destination": "Yogyakarta",
+  "startDate": "2025-07-15",
+  "endDate": "2025-07-20"
+}
+
+###
+
+### GET semua trip
+GET http://localhost:3000/api/trip
+Content-Type: application/json
+
+###
+
+### GET trip by ID (misal tripId = 1)
+GET http://localhost:3000/api/trip?tripId=1
+Content-Type: application/json
+
+###
+
+### POST buat trip baru
+POST http://localhost:3000/api/trip
+Content-Type: application/json
+
+{
+  "userId": 1,
+  "title": "Liburan ke Bali",
+  "destination": "Bali",
+  "startDate": "2025-07-15",
+  "endDate": "2025-07-20"
+}
+
+###
+
+### PUT update trip (ubah title misalnya)
+PUT http://localhost:3000/api/trip
+Content-Type: application/json
+
+{
+  "id": 1,
+  "title": "Liburan ke Bali & Lombok",
+  "destination": "Bali & Lombok",
+  "startDate": "2025-07-15",
+  "endDate": "2025-07-22"
+}
+
+###
+
+### DELETE trip
+DELETE http://localhost:3000/api/trip
+Content-Type: application/json
+
+{
+  "id": 1
+}
