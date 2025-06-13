@@ -1,4 +1,3 @@
-// pages/admin/dashboard.js
 import { useEffect, useState } from 'react';
 
 export default function AdminDashboard() {
@@ -68,55 +67,30 @@ export default function AdminDashboard() {
       label: 'Total Users', 
       value: stats.users, 
       icon: '👥', 
-      gradient: 'from-blue-500 to-blue-600',
-      shadow: 'shadow-blue-500/20',
-      iconBg: 'bg-blue-100',
-      textColor: 'text-blue-600',
-      change: '+12%',
       changeType: 'positive'
     },
     { 
       label: 'Active Trips', 
       value: stats.trips, 
       icon: '✈️', 
-      gradient: 'from-emerald-500 to-emerald-600',
-      shadow: 'shadow-emerald-500/20',
-      iconBg: 'bg-emerald-100',
-      textColor: 'text-emerald-600',
-      change: '+8%',
       changeType: 'positive'
     },
     { 
       label: 'Rundowns', 
       value: stats.rundowns, 
       icon: '📋', 
-      gradient: 'from-purple-500 to-purple-600',
-      shadow: 'shadow-purple-500/20',
-      iconBg: 'bg-purple-100',
-      textColor: 'text-purple-600',
-      change: '+15%',
       changeType: 'positive'
     },
     { 
       label: 'Photos Shared', 
       value: stats.photos, 
       icon: '📸', 
-      gradient: 'from-pink-500 to-pink-600',
-      shadow: 'shadow-pink-500/20',
-      iconBg: 'bg-pink-100',
-      textColor: 'text-pink-600',
-      change: '+23%',
       changeType: 'positive'
     },
     { 
       label: 'Split Bills', 
       value: stats.splitBills, 
       icon: '💰', 
-      gradient: 'from-amber-500 to-amber-600',
-      shadow: 'shadow-amber-500/20',
-      iconBg: 'bg-amber-100',
-      textColor: 'text-amber-600',
-      change: '-3%',
       changeType: 'negative'
     },
   ];
@@ -132,30 +106,24 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative">
-            <div className="w-20 h-20 border-4 border-blue-200 rounded-full animate-spin"></div>
-            <div className="absolute top-0 left-0 w-20 h-20 border-4 border-blue-600 rounded-full animate-spin border-t-transparent"></div>
-          </div>
-          <p className="mt-6 text-slate-600 font-medium">Loading dashboard...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-white to-gray-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-8">
-          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="w-20 h-20 bg-gray-100 border-2 border-gray-300 rounded-full flex items-center justify-center mx-auto mb-6">
             <span className="text-3xl">⚠️</span>
           </div>
-          <h2 className="text-2xl font-bold text-red-800 mb-4">Dashboard Error</h2>
-          <p className="text-red-600 mb-6">{error}</p>
+          <h2 className="text-2xl font-bold text-black mb-4">Dashboard Error</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
           <button 
             onClick={() => window.location.reload()} 
-            className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+            className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
           >
             Try Again
           </button>
@@ -165,46 +133,21 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Header */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-                <span className="text-white text-xl font-bold">TP</span>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-800">Trip Planner Admin</h1>
-                <p className="text-slate-600 text-sm">Welcome back, Administrator</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-slate-800 font-medium">
-                {currentTime.toLocaleDateString('id-ID', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
-              </p>
-              <p className="text-slate-600 text-sm">
-                {currentTime.toLocaleTimeString('id-ID')}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100">
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-8 text-white relative overflow-hidden">
+          <div className="bg-gradient-to-r from-black to-gray-800 rounded-2xl p-8 text-white relative overflow-hidden border border-gray-300 shadow-2xl">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
             <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
+            <div className="absolute top-4 right-4 text-xs text-gray-300 font-mono">
+              {currentTime.toLocaleTimeString()}
+            </div>
             <div className="relative z-10">
-              <h2 className="text-3xl font-bold mb-2">Dashboard Overview</h2>
-              <p className="text-blue-100">Monitor your Trip Planner application performance</p>
+              <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                Dashboard Overview
+              </h2>
+              <p className="text-gray-200">Monitor your Friends Trip application performance</p>
             </div>
           </div>
         </div>
@@ -214,47 +157,51 @@ export default function AdminDashboard() {
           {statItems.map((item, index) => (
             <div
               key={index}
-              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 hover:bg-white/90 transition-all duration-300 hover:scale-105 hover:${item.shadow} border border-white/50`}
+              className="bg-white rounded-2xl p-6 hover:bg-gray-50 transition-all duration-300 hover:scale-105 border border-gray-200 hover:border-gray-300 shadow-xl hover:shadow-2xl group"
             >
               <div className="flex items-center justify-between mb-4">
-                <div className={`w-14 h-14 ${item.iconBg} rounded-xl flex items-center justify-center`}>
-                  <span className="text-2xl">{item.icon}</span>
+                <div className="w-14 h-14 bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-300 rounded-xl flex items-center justify-center group-hover:from-gray-200 group-hover:to-gray-300 transition-all duration-200">
+                  <span className="text-2xl grayscale group-hover:grayscale-0 transition-all duration-200">{item.icon}</span>
                 </div>
-                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                <div className={`px-3 py-1 rounded-full text-xs font-medium border ${
                   item.changeType === 'positive' 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-red-100 text-red-700'
+                    ? 'bg-gray-100 border-gray-300 text-gray-700' 
+                    : 'bg-gray-50 border-gray-200 text-gray-600'
                 }`}>
                   {item.change}
                 </div>
               </div>
               <div className="space-y-1">
-                <p className="text-3xl font-bold text-slate-800">{item.value.toLocaleString()}</p>
-                <p className="text-slate-600 text-sm font-medium">{item.label}</p>
+                <p className="text-3xl font-bold text-black group-hover:text-gray-800 transition-colors">
+                  {item.value.toLocaleString()}
+                </p>
+                <p className="text-gray-600 text-sm font-medium group-hover:text-gray-700 transition-colors">
+                  {item.label}
+                </p>
               </div>
             </div>
           ))}
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <div className="gap-8 mb-8">
           <div className="lg:col-span-2">
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50">
-              <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
-                <span className="w-2 h-8 bg-gradient-to-b from-blue-500 to-indigo-500 rounded-full mr-3"></span>
+            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xl">
+              <h3 className="text-xl font-bold text-black mb-6 flex items-center">
+                <span className="w-2 h-8 bg-gradient-to-b from-black to-gray-600 rounded-full mr-3"></span>
                 Quick Actions
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {quickActions.map((action, index) => (
                   <button
                     key={index}
-                    className="group p-4 bg-gradient-to-br from-white to-slate-50 hover:from-slate-50 hover:to-slate-100 rounded-xl border border-slate-200 hover:border-slate-300 transition-all duration-200 hover:scale-105"
+                    className="group p-4 bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
                   >
                     <div className="text-center">
-                      <div className="w-12 h-12 mx-auto mb-3 bg-slate-100 group-hover:bg-slate-200 rounded-lg flex items-center justify-center transition-colors">
-                        <span className="text-xl">{action.icon}</span>
+                      <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-gray-200 to-gray-300 group-hover:from-gray-300 group-hover:to-gray-400 rounded-lg flex items-center justify-center transition-all duration-200 border border-gray-300">
+                        <span className="text-xl grayscale group-hover:grayscale-0 transition-all duration-200">{action.icon}</span>
                       </div>
-                      <p className="text-sm font-medium text-slate-700 group-hover:text-slate-800">
+                      <p className="text-sm font-medium text-gray-700 group-hover:text-black transition-colors">
                         {action.label}
                       </p>
                     </div>
@@ -263,38 +210,44 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Activity Feed */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50">
-            <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
-              <span className="w-2 h-8 bg-gradient-to-b from-green-500 to-emerald-500 rounded-full mr-3"></span>
-              Recent Activity
+        {/* System Status */}
+        <div className="mb-8">
+          <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xl">
+            <h3 className="text-xl font-bold text-black mb-4 flex items-center">
+              <span className="w-2 h-8 bg-gradient-to-b from-gray-600 to-gray-400 rounded-full mr-3"></span>
+              System Status
             </h3>
-            <div className="space-y-4">
-              {[
-                { action: 'New user registered', time: '2 minutes ago', icon: '👋', color: 'blue' },
-                { action: 'Trip to Bali created', time: '15 minutes ago', icon: '✈️', color: 'green' },
-                { action: 'Photo uploaded', time: '1 hour ago', icon: '📸', color: 'pink' },
-                { action: 'Split bill created', time: '2 hours ago', icon: '💰', color: 'amber' },
-                { action: 'System backup completed', time: '3 hours ago', icon: '💾', color: 'purple' },
-              ].map((activity, index) => (
-                <div key={index} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/50 transition-colors">
-                  <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
-                    <span className="text-sm">{activity.icon}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate">{activity.action}</p>
-                    <p className="text-xs text-slate-500">{activity.time}</p>
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <span className="text-gray-700 font-medium">Server Status</span>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-black rounded-full mr-2 animate-pulse"></div>
+                  <span className="text-gray-800 text-sm">Online</span>
                 </div>
-              ))}
+              </div>
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <span className="text-gray-700 font-medium">Database</span>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-black rounded-full mr-2"></div>
+                  <span className="text-gray-800 text-sm">Connected</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <span className="text-gray-700 font-medium">API</span>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-black rounded-full mr-2"></div>
+                  <span className="text-gray-800 text-sm">Operational</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="text-center text-slate-600 text-sm">
-          <p>&copy; 2025 Trip Planner Admin Dashboard. Made with ❤️</p>
+        <div className="text-center text-gray-500 text-sm">
+          <p>&copy; 2025 Trip Friends Admin Dashboard. Made with 🤍</p>
         </div>
       </div>
     </div>
