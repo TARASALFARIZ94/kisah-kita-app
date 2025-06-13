@@ -1,4 +1,4 @@
-import '@/styles/global.css'
+import '@/styles/globals.css'
 import AdminLayout from '@/components/layout/AdminLayout';
 
 export default function App({ Component, pageProps, router }) {

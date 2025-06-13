@@ -38,6 +38,11 @@ const Sidebar = () => {
     initials: 'AU'
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('auth_token');
+    router.push('/login');
+  };
+
   useEffect(() => {
     const currentPath = router.pathname;
     const foundItem = menuItems.find(item => item.href === currentPath);
@@ -201,7 +206,8 @@ const Sidebar = () => {
       {/* Logout Section */}
       <div className="border-t border-gray-100 p-3">
         <Link
-          href="/logout"
+          href="/login" 
+          onClick={handleLogout}
           className="w-full flex items-center px-3 py-2.5 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all duration-200 group"
         >
           <div className="flex items-center space-x-3">

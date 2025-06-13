@@ -1,12 +1,15 @@
+// pages/admin/dashboard.js
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+import { jwtDecode } from 'jwt-decode';
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const [stats, setStats] = useState({
     users: 0,
     trips: 0,
     rundowns: 0,
     photos: 0,
-    splitBills: 0
   });
 
   const [loading, setLoading] = useState(true);
@@ -21,20 +24,76 @@ export default function AdminDashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  // <-- MULAI PERUBAHAN UTAMA DI SINI -->
+
   useEffect(() => {
-    const fetchStats = async () => {
+    const checkAuthAndFetchStats = async () => {
+      setLoading(true); // Mulai loading state
+
+      // 1. Cek Token Autentikasi dari Local Storage
+      const token = localStorage.getItem('authToken');
+
+      if (!token) {
+        // Jika tidak ada token, arahkan pengguna ke halaman login
+        router.push('/login'); // Ganti '/login' dengan path halaman login Anda
+        return;
+      }
+
+      let userRole = null;
       try {
-        setLoading(true);
-        const [userRes, tripRes, rundownRes, photoRes, billRes] = await Promise.all([
-          fetch('/api/user'),
-          fetch('/api/trip'),
-          fetch('/api/rundown'),
-          fetch('/api/photo'),
-          fetch('/api/splitbill'),
+        // Decode token untuk mendapatkan informasi role
+        // Pastikan token Anda memiliki properti 'role'
+         const decodedToken = jwtDecode(token);
+        userRole = decodedToken.role;
+
+        // 2. Cek Role Pengguna
+        if (userRole !== 'ADMIN') {
+          // Jika role bukan admin, arahkan ke halaman akses ditolak atau halaman beranda
+          alert('Anda tidak memiliki izin untuk mengakses halaman ini.'); // Pesan peringatan
+          router.push('/'); // Arahkan ke halaman beranda atau halaman khusus 'akses ditolak'
+          return; // Hentikan eksekusi lebih lanjut
+        }
+
+        // Opsional: Validasi token ke backend jika diperlukan (misal: `/api/verify-token`)
+        // Ini adalah lapisan keamanan tambahan untuk memastikan token masih valid dan belum kadaluarsa.
+        const verifyRes = await fetch('/api/verify-token', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!verifyRes.ok) {
+          // Jika verifikasi gagal (token tidak valid/kadaluarsa), hapus token dan redirect
+          localStorage.removeItem('authToken');
+          router.push('/login');
+          return;
+        }
+
+      } catch (err) {
+        console.error('Token decoding or verification failed:', err);
+        // Jika terjadi error saat decode atau verifikasi, anggap token tidak valid
+        localStorage.removeItem('authToken');
+        router.push('/login');
+        return;
+      }
+
+      // 3. Jika token valid dan role adalah admin, lanjutkan fetching data
+      try {
+        const [userRes, tripRes, rundownRes, photoRes] = await Promise.all([
+          fetch('/api/user', { headers: { 'Authorization': `Bearer ${token}` }}),
+          fetch('/api/trip', { headers: { 'Authorization': `Bearer ${token}` }}),
+          fetch('/api/rundown', { headers: { 'Authorization': `Bearer ${token}` }}),
+          fetch('/api/photo', { headers: { 'Authorization': `Bearer ${token}` }}),
         ]);
 
-        // Check if all responses are ok
-        if (!userRes.ok || !tripRes.ok || !rundownRes.ok || !photoRes.ok || !billRes.ok) {
+        if (!userRes.ok || !tripRes.ok || !rundownRes.ok || !photoRes.ok) {
+          // Jika ada API fetch yang gagal (misal: 401 Unauthorized), mungkin token kadaluarsa
+          if (userRes.status === 401 || tripRes.status === 401) {
+              localStorage.removeItem('authToken');
+              router.push('/login');
+              return;
+          }
           throw new Error('Failed to fetch data from one or more endpoints');
         }
 
@@ -42,56 +101,50 @@ export default function AdminDashboard() {
         const trips = await tripRes.json();
         const rundowns = await rundownRes.json();
         const photos = await photoRes.json();
-        const bills = await billRes.json();
 
         setStats({
           users: Array.isArray(users) ? users.length : 0,
           trips: Array.isArray(trips) ? trips.length : 0,
           rundowns: Array.isArray(rundowns) ? rundowns.length : 0,
           photos: Array.isArray(photos) ? photos.length : 0,
-          splitBills: Array.isArray(bills) ? bills.length : 0
         });
-      } catch (error) {
-        console.error('Failed to fetch stats:', error);
-        setError(error.message);
+      } catch (apiError) {
+        console.error('Failed to fetch stats:', apiError);
+        setError(apiError.message);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchStats();
-  }, []);
+    checkAuthAndFetchStats();
+  }, [router]); // Tambahkan `router` sebagai dependency useEffect
+
+  
 
   const statItems = [
-    { 
-      label: 'Total Users', 
-      value: stats.users, 
-      icon: '👥', 
+    {
+      label: 'Total Users',
+      value: stats.users,
+      icon: '👥',
       changeType: 'positive'
     },
-    { 
-      label: 'Active Trips', 
-      value: stats.trips, 
-      icon: '✈️', 
+    {
+      label: 'Active Trips',
+      value: stats.trips,
+      icon: '✈️',
       changeType: 'positive'
     },
-    { 
-      label: 'Rundowns', 
-      value: stats.rundowns, 
-      icon: '📋', 
+    {
+      label: 'Rundowns',
+      value: stats.rundowns,
+      icon: '📋',
       changeType: 'positive'
     },
-    { 
-      label: 'Photos Shared', 
-      value: stats.photos, 
-      icon: '📸', 
+    {
+      label: 'Photos Shared',
+      value: stats.photos,
+      icon: '📸',
       changeType: 'positive'
-    },
-    { 
-      label: 'Split Bills', 
-      value: stats.splitBills, 
-      icon: '💰', 
-      changeType: 'negative'
     },
   ];
 
@@ -121,8 +174,8 @@ export default function AdminDashboard() {
           </div>
           <h2 className="text-2xl font-bold text-black mb-4">Dashboard Error</h2>
           <p className="text-gray-600 mb-6">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
+          <button
+            onClick={() => window.location.reload()}
             className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
           >
             Try Again
@@ -153,7 +206,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
           {statItems.map((item, index) => (
             <div
               key={index}
@@ -164,8 +217,8 @@ export default function AdminDashboard() {
                   <span className="text-2xl grayscale group-hover:grayscale-0 transition-all duration-200">{item.icon}</span>
                 </div>
                 <div className={`px-3 py-1 rounded-full text-xs font-medium border ${
-                  item.changeType === 'positive' 
-                    ? 'bg-gray-100 border-gray-300 text-gray-700' 
+                  item.changeType === 'positive'
+                    ? 'bg-gray-100 border-gray-300 text-gray-700'
                     : 'bg-gray-50 border-gray-200 text-gray-600'
                 }`}>
                   {item.change}

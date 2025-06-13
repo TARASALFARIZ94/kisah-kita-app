@@ -19,10 +19,10 @@ POST http://localhost:3000/api/user
 Content-Type: application/json
 
 {
-  "name": "Nasywa Adita",
-  "email": "nasywa@example.com",
+  "name": "Admin",
+  "email": "administrator@gmail.com",
   "password": "rahasia123",
-  "role": "USER"
+  "role": "ADMIN"
 }
 
 ###

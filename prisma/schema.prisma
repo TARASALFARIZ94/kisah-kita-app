@@ -34,7 +34,6 @@ model Trip {
   
   rundowns     Rundown[]
   photos       Photo[]
-  splitBills   SplitBill[]
 }
 
 model Rundown {
@@ -53,14 +52,6 @@ model Photo {
   reported   Boolean  @default(false)
 }
 
-model SplitBill {
-  id           Int      @id @default(autoincrement())
-  trip         Trip     @relation(fields: [tripId], references: [id])
-  tripId       Int
-  payer        String
-  amount       Float
-  participants String // JSON string (list nama atau email)
-}
 
 enum Role {
   USER
