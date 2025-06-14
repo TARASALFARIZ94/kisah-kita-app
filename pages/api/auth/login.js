@@ -63,7 +63,7 @@ export default async function handler(req, res) {
 
     if (!isPasswordValid) {
       console.log('❌ Password mismatch');
-      return res.status(401).json({ message: 'Invalid credentials.' });
+      return res.status(401).json({ message: 'Invalid password.' });
     }
 
     // 4. Generate JSON Web Token (JWT)
