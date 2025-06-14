@@ -1,192 +1,153 @@
-// pages/dashboard.jsx atau pages/user/dashboard.jsx
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/router'; // Menggunakan next/router untuk Pages Router
-import { jwtDecode } from 'jwt-decode'; // Pastikan Anda sudah menginstal 'jwt-decode'
 import {
   Plane, // Untuk Trip Planning
-  ClipboardList, // Untuk Rundown Management
+  ClipboardList, // Untuk Rundown Management (not used in stats, but good for layout)
   DollarSign, // Untuk Split Bills
-  Camera, // Untuk Photo Gallery
-  User, // Untuk profil user (digunakan di sini)
+  Camera, // Untuk Photo Gallery (not used in stats, but good for layout)
+  User, // Untuk profil user
   Settings, // Untuk pengaturan (jika ada)
   Calendar, // Untuk event atau tanggal
   Info, // Untuk informasi umum
   LogOut, // Untuk logout
-  ArrowRight // Untuk ikon panah, jika Anda menggunakannya
-} from 'lucide-react'; // Sesuaikan dengan library ikon Anda
+  ArrowRight // Untuk tombol "Go to..."
+} from 'lucide-react';
+
+import UserLayout from '@/components/layout/UserLayout'; // Import UserLayout
+
+// Fungsi untuk mendapatkan token dari localStorage
+// Ini harus dipanggil hanya di sisi klien
+const getAuthToken = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('authToken');
+  }
+  return null;
+};
 
 const UserDashboard = () => {
-  const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [loggedInUser, setLoggedInUser] = useState(null);
+  // State untuk menyimpan data yang diambil dari API
+  const [upcomingTripsCount, setUpcomingTripsCount] = useState(0);
+  const [unsettledBillsCount, setUnsettledBillsCount] = useState(0);
 
-  const [upcomingTrips, setUpcomingTrips] = useState(0);
-  const [totalPhotos, setTotalPhotos] = useState(0);
-  const [unsettledBills, setUnsettledBills] = useState(0);
+  // Data pengguna yang login akan diambil dari token di sidebar, tidak perlu di sini lagi
+  const userData = {
+    name: 'User Dashboard', // Tetap sebagai placeholder visual jika tidak diambil dari tempat lain
+    email: 'dashboard@example.com',
+  };
+
+  const [loading, setLoading] = useState(true);
+
+  // Fungsi untuk mengambil jumlah data dari API
+  const fetchCounts = async () => {
+    setLoading(true);
+    const token = getAuthToken();
+    if (!token) {
+      // Jika tidak ada token, set default dan keluar
+      setUpcomingTripsCount(0);
+      setUnsettledBillsCount(0);
+      setLoading(false);
+      // Opsional: Redirect ke halaman login jika token tidak ada
+      // router.push('/login');
+      return;
+    }
+
+    try {
+      // --- Fetch Upcoming Trips Count ---
+      const tripsRes = await fetch('/api/user/trips', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (tripsRes.ok) {
+        const tripsData = await tripsRes.json();
+        // Filter trip yang startDate-nya di masa depan
+        const now = new Date();
+        const upcoming = tripsData.filter(trip => new Date(trip.startDate) > now);
+        setUpcomingTripsCount(upcoming.length);
+      } else {
+        console.error("Failed to fetch trips for count:", await tripsRes.json());
+        setUpcomingTripsCount(0);
+      }
+
+      // --- Fetch Unsettled Bills Count ---
+      // ASUMSI: Anda memiliki endpoint API untuk splitbills yang bisa memberikan jumlah tagihan belum terselesaikan.
+      // Contoh 1: Endpoint mengembalikan count langsung
+      const billsRes = await fetch('/api/splitbill', { // Ganti dengan endpoint yang sesuai
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (billsRes.ok) {
+        const billsData = await billsRes.json();
+        // Asumsi billsData adalah { unsettledCount: number } atau langsung number
+        setUnsettledBillsCount(billsData.unsettledCount || 0); 
+      } else {
+        console.error("Failed to fetch unsettled bills count:", await billsRes.json());
+        setUnsettledBillsCount(0);
+      }
+      
+      // Contoh 2 (jika /api/user/splitbills mengembalikan array tagihan dan Anda filter di frontend):
+      // const billsRes = await fetch('/api/user/splitbills', { headers: { 'Authorization': `Bearer ${token}` } });
+      // if (billsRes.ok) {
+      //   const allBills = await billsRes.json();
+      //   const unsettled = allBills.filter(bill => !bill.isSettled); // Asumsi ada properti isSettled
+      //   setUnsettledBillsCount(unsettled.length);
+      // } else { /* ... error handling ... */ }
+
+    } catch (error) {
+      console.error("Error fetching dashboard counts:", error);
+      setUpcomingTripsCount(0);
+      setUnsettledBillsCount(0);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const checkAuthAndFetchData = async () => {
-      setLoading(true);
-      setError(null);
-
-      const token = localStorage.getItem('authToken');
-
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      let decodedPayload = null;
-      try {
-        decodedPayload = jwtDecode(token);
-
-        if (decodedPayload.exp * 1000 < Date.now()) {
-          console.warn('Token expired. Redirecting to login.');
-          localStorage.removeItem('authToken');
-          router.push('/login');
-          return;
-        }
-
-        if (decodedPayload.role !== 'USER') {
-          console.warn('Unauthorized role detected for USER dashboard. Redirecting.');
-          if (decodedPayload.role === 'ADMIN') {
-            router.push('/admin-dashboard');
-          } else {
-            router.push('/');
-          }
-          return;
-        }
-
-        setLoggedInUser({
-          id: decodedPayload.userId,
-          name: decodedPayload.name || decodedPayload.email.split('@')[0],
-          email: decodedPayload.email,
-          initials: (decodedPayload.name ? decodedPayload.name.split(' ').map(n => n[0]).join('') : decodedPayload.email[0]).toUpperCase(),
-          role: decodedPayload.role
-        });
-
-        setUpcomingTrips(3);
-        setTotalPhotos(125);
-        setUnsettledBills(2);
-
-      } catch (err) {
-        console.error('Authentication/Authorization error in UserDashboard:', err);
-        localStorage.removeItem('authToken');
-        router.push('/login');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuthAndFetchData();
-  }, [router]);
-
-  const handleLogout = () => {
-  // Tampilkan dialog konfirmasi
-  const isConfirmed = window.confirm('Are you sure you want to log out?');
-
-    // Jika pengguna mengklik "OK" pada dialog konfirmasi
-    if (isConfirmed) {
-      localStorage.removeItem('authToken'); // Hapus token
-      router.push('/'); // Redirect ke halaman login
-    }
-    // Jika pengguna mengklik "Batal", tidak ada yang terjadi
-  };
+    fetchCounts();
+  }, []); // Jalankan sekali saat komponen dimuat
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-8">
-          <div className="w-20 h-20 bg-gray-100 border-2 border-gray-300 rounded-full flex items-center justify-center mx-auto mb-6">
-            <span className="text-3xl">⚠️</span>
-          </div>
-          <h2 className="text-2xl font-bold text-black mb-4">Akses Ditolak</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={() => router.push('/login')}
-            className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
-          >
-            Kembali ke Login
-          </button>
+      <UserLayout> {/* Pastikan UserLayout membungkus loader juga */}
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
         </div>
-      </div>
+      </UserLayout>
     );
-  }
-
-  if (!loggedInUser) {
-    return null;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 text-gray-900 font-sans">
-      <nav className="bg-white/80 backdrop-blur-sm shadow-md py-4 px-6 md:px-12 flex justify-between items-center rounded-b-xl">
-        <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 bg-black rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-base">FT</span>
-          </div>
-          <span className="font-bold text-xl text-gray-900">Friends Trip</span>
-        </div>
-
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <div className="w-9 h-9 bg-gray-300 rounded-full flex items-center justify-center">
-              {loggedInUser.avatar ? (
-                <img src={loggedInUser.avatar} alt={loggedInUser.name} className="w-9 h-9 rounded-full object-cover" />
-              ) : (
-                <span className="text-gray-600 font-medium text-sm">{loggedInUser.initials}</span>
-              )}
-            </div>
-            <span className="font-medium text-gray-800 hidden sm:block">{loggedInUser.name}</span>
-          </div>
-          {/* Logout Button in Navbar - Tanpa <a> */}
-          <Link href="/login" onClick={handleLogout} className="p-2 text-gray-600 hover:text-red-600 hover:bg-gray-100 rounded-md transition-colors">
-            <LogOut size={20} />
-          </Link>
-        </div>
-      </nav>
-
+    <UserLayout> {/* Bungkus seluruh konten dengan UserLayout */}
       <main className="p-6 md:p-12">
+        {/* Welcome Section */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8 text-center md:text-left">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome, {loggedInUser.name}!</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome, {userData.name}!</h1>
           <p className="text-gray-600">Your adventure hub is here. Ready to plan your next trip?</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        {/* Quick Stats / Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12"> {/* Hanya 2 kolom */}
           <div className="bg-white rounded-xl shadow-lg p-6 flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Upcoming Trips</p>
-              <h2 className="text-3xl font-bold text-gray-900">{upcomingTrips}</h2>
+              <h2 className="text-3xl font-bold text-gray-900">{upcomingTripsCount}</h2> {/* Menggunakan data yang diambil */}
             </div>
             <Plane size={48} className="text-gray-400 opacity-30" />
           </div>
           <div className="bg-white rounded-xl shadow-lg p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Total Photos Shared</p>
-              <h2 className="text-3xl font-bold text-gray-900">{totalPhotos}</h2>
-            </div>
-            <Camera size={48} className="text-gray-400 opacity-30" />
-          </div>
-          <div className="bg-white rounded-xl shadow-lg p-6 flex items-center justify-between">
-            <div>
               <p className="text-sm text-gray-500">Unsettled Bills</p>
-              <h2 className="text-3xl font-bold text-gray-900">{unsettledBills}</h2>
+              <h2 className="text-3xl font-bold text-gray-900">{unsettledBillsCount}</h2> {/* Menggunakan data yang diambil */}
             </div>
             <DollarSign size={48} className="text-gray-400 opacity-30" />
           </div>
+          {/* totalPhotos dihapus */}
         </div>
 
+        {/* Feature Sections - Tetap sama */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* Card: My Trips - Tanpa <a> */}
+          {/* Card: My Trips */}
           <Link href="/user/trips" className="block bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300">
             <div className="p-4 bg-gray-200 rounded-full inline-flex mb-4">
               <Plane size={32} className="text-gray-800" />
@@ -198,7 +159,7 @@ const UserDashboard = () => {
             </span>
           </Link>
 
-          {/* Card: Trip Rundowns - Tanpa <a> */}
+          {/* Card: Trip Rundowns */}
           <Link href="/user/rundowns" className="block bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300">
             <div className="p-4 bg-gray-300 rounded-full inline-flex mb-4">
               <ClipboardList size={32} className="text-gray-800" />
@@ -210,7 +171,7 @@ const UserDashboard = () => {
             </span>
           </Link>
 
-          {/* Card: Split Bills - Tanpa <a> */}
+          {/* Card: Split Bills */}
           <Link href="/user/splitbills" className="block bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300">
             <div className="p-4 bg-gray-400 rounded-full inline-flex mb-4">
               <DollarSign size={32} className="text-gray-900" />
@@ -222,7 +183,7 @@ const UserDashboard = () => {
             </span>
           </Link>
 
-          {/* Card: Photo Gallery - Tanpa <a> */}
+          {/* Card: Photo Gallery */}
           <Link href="/user/photos" className="block bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300">
             <div className="p-4 bg-gray-500 rounded-full inline-flex mb-4">
               <Camera size={32} className="text-white" />
@@ -234,7 +195,7 @@ const UserDashboard = () => {
             </span>
           </Link>
 
-          {/* Card: Account Settings (optional) - Tanpa <a> */}
+          {/* Card: Account Settings (optional) */}
           <Link href="/user/settings" className="block bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300">
             <div className="p-4 bg-gray-600 rounded-full inline-flex mb-4">
               <Settings size={32} className="text-white" />
@@ -246,7 +207,7 @@ const UserDashboard = () => {
             </span>
           </Link>
 
-          {/* Card: Help & Support (optional) - Tanpa <a> */}
+           {/* Card: Help & Support (optional) */}
           <Link href="/user/help" className="block bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300">
             <div className="p-4 bg-gray-700 rounded-full inline-flex mb-4">
               <Info size={32} className="text-white" />
@@ -260,6 +221,7 @@ const UserDashboard = () => {
         </div>
       </main>
 
+      {/* Footer (dipindahkan ke sini jika tidak di handle oleh _app.js) */}
       <footer className="py-10 px-6 bg-black text-gray-400 text-center text-sm mt-12">
         <div className="max-w-6xl mx-auto">
           <p>&copy; {new Date().getFullYear()} Friends Trip. All Rights Reserved.</p>
@@ -269,7 +231,7 @@ const UserDashboard = () => {
           </div>
         </div>
       </footer>
-    </div>
+    </UserLayout>
   );
 };
 
