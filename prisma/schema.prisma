@@ -52,6 +52,14 @@ model Photo {
   reported   Boolean  @default(false)
 }
 
+model FAQ {
+  id        Int      @id @default(autoincrement())
+  question  String   @db.Text // Gunakan @db.Text jika pertanyaan bisa panjang
+  answer    String   @db.Text // Gunakan @db.Text jika jawaban bisa panjang
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+}
 
 enum Role {
   USER
