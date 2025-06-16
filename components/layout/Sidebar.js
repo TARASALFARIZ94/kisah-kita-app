@@ -5,25 +5,23 @@ import { jwtDecode } from 'jwt-decode'; // Pastikan Anda sudah menginstal 'jwt-d
 
 import {
   Home,
-  BarChart3,
-  Users,
-  Settings,
-  FileText,
-  Calendar,
-  Bell,
-  MessageSquare,
-  DollarSign,
+  Users, // For User Management
+  Plane, // For Trip Management
+  ClipboardList, // For Rundowns
+  Camera, // For Photo Gallery
+  // DollarSign, // Jika ada fitur Split Bills untuk admin
+  // FileText, // Jika ada fitur Content Review untuk admin
+  // BarChart3, // Jika ada fitur Reports untuk admin
+  Settings, // For Admin Profile Settings
+  HelpCircle, // NEW: For FAQ Management
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Search,
-  User,
-  Camera,
-  Plane,
-  ClipboardList,
-  Shield,
-  HelpCircle,
-  Database
+  // Search, // Tidak digunakan secara eksplisit di sini
+  // User, // Icon User sudah ada di Settings
+  // Bell, // Jika ada fitur Notifications untuk admin
+  // MessageSquare, // Jika ada fitur Messaging/Content Review untuk admin
+  // Database // Jika ada fitur Database Management untuk admin
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -82,22 +80,32 @@ const Sidebar = () => {
   }, [router]); // router sebagai dependency
 
   // --- Fungsi Logout (sama seperti sebelumnya) ---
-  const handleLogout = () => {
-    const isConfirmed = window.confirm('Are you sure you want to log out?');
+  // Gunakan Link dengan onClick untuk logout, hindari window.confirm
+  const handleLogout = (e) => {
+    e.preventDefault(); // Mencegah navigasi Link langsung
+    // Anda bisa mengganti window.confirm dengan modal kustom jika ingin
+    const isConfirmed = window.confirm('Are you sure you want to log out?'); 
     if (isConfirmed) {
       localStorage.removeItem('authToken');
-      router.push('/');
+      router.push('/'); // Redirect ke halaman utama atau login setelah logout
     }
   };
 
-  // --- Efek untuk mengelola item menu aktif (sama seperti sebelumnya) ---
+  // --- Efek untuk mengelola item menu aktif (diperbaiki untuk startsWith) ---
   useEffect(() => {
     const currentPath = router.pathname;
-    const foundItem = menuItems.find(item => item.href === currentPath);
+    // Menggunakan startsWith untuk deteksi aktif yang lebih baik pada rute nested
+    const foundItem = menuItems.find(item => currentPath.startsWith(item.href)); 
+    
     if (foundItem) {
       setActiveItem(foundItem.id);
     } else {
-      setActiveItem('dashboard');
+      // Fallback jika tidak ada match spesifik, tapi berada di bawah /admin/
+      if (currentPath.startsWith('/admin/')) {
+        setActiveItem('dashboard'); // Default ke dashboard jika di dalam area admin tapi tidak match spesifik
+      } else {
+        setActiveItem(''); // Tidak ada yang aktif jika di luar area admin
+      }
     }
   }, [router.pathname]);
 
@@ -127,6 +135,12 @@ const Sidebar = () => {
       icon: Camera,
       href: '/admin/photos',
     },
+    { 
+      id: 'faqs', // NEW: ID untuk menu FAQ
+      label: 'FAQ Management', // NEW: Label menu untuk FAQ
+      icon: HelpCircle, // NEW: Icon untuk FAQ
+      href: '/admin/faqs', // NEW: Link ke halaman FAQ Admin
+    },
   ];
 
   const handleItemClick = () => {
@@ -147,7 +161,7 @@ const Sidebar = () => {
 
   // --- Tampilan Sidebar Utama ---
   // Jika loggedInAdmin null setelah loading (artinya tidak terautentikasi/otorisasi),
-  // komponen ini mungkin tidak perlu render apa-apa (karena sudah di-redirect).
+  // komponen ini mungkin tidak perlu render apa-apa (karena sudah di-redirect oleh useEffect).
   if (!loggedInAdmin) {
     return null;
   }
@@ -179,6 +193,7 @@ const Sidebar = () => {
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="p-1 rounded-md hover:bg-gray-100 transition-colors"
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? (
               <ChevronRight className="w-4 h-4 text-gray-500" />
@@ -199,8 +214,9 @@ const Sidebar = () => {
           )}
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = router.pathname === item.href;
-
+            // Gunakan startsWith untuk deteksi aktif yang lebih baik pada rute nested
+            const isActive = router.pathname.startsWith(item.href); 
+            
             return (
               <Link
                 key={item.id}
@@ -210,7 +226,7 @@ const Sidebar = () => {
                     ? 'bg-black text-white shadow-sm'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
-                onClick={() => handleItemClick()}
+                onClick={handleItemClick}
               >
                 <div className="flex items-center space-x-3">
                   <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}`} />
@@ -230,8 +246,8 @@ const Sidebar = () => {
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
               {loggedInAdmin.avatar ? (
-                <img
-                  src={loggedInAdmin.avatar}
+                <img 
+                  src={loggedInAdmin.avatar} 
                   alt={loggedInAdmin.name}
                   className="w-10 h-10 rounded-full object-cover"
                 />
@@ -249,17 +265,16 @@ const Sidebar = () => {
                 {loggedInAdmin.email}
               </p>
             </div>
-            {/* Tombol Settings (opsional) */}
-            <button className="p-1 rounded-md hover:bg-gray-100 transition-colors">
+            <Link href="/admin/settings" className="p-1 rounded-md hover:bg-gray-100 transition-colors" aria-label="Account Settings">
               <Settings className="w-4 h-4 text-gray-400" />
-            </button>
+            </Link>
           </div>
         ) : (
           <div className="flex justify-center">
             <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
               {loggedInAdmin.avatar ? (
-                <img
-                  src={loggedInAdmin.avatar}
+                <img 
+                  src={loggedInAdmin.avatar} 
                   alt={loggedInAdmin.name}
                   className="w-8 h-8 rounded-full object-cover"
                 />
@@ -276,7 +291,7 @@ const Sidebar = () => {
       {/* Logout Section - Menggunakan loggedInAdmin */}
       <div className="border-t border-gray-100 p-3">
         <Link
-          href="/login"
+          href="/login" // Link ke halaman login setelah logout
           onClick={handleLogout}
           className="w-full flex items-center px-3 py-2.5 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all duration-200 group"
         >
@@ -292,18 +307,6 @@ const Sidebar = () => {
   );
 };
 
-// Pastikan komponen ini dibungkus di file AdminDashboard yang sudah dilindungi
-const DashboardWithSidebar = ({ children }) => {
-  // Ini adalah wrapper, biasanya di sini juga dilakukan proteksi jika Sidebar adalah bagian dari layout
-  // Jika AdminDashboard.js sudah punya proteksi, ini mungkin tidak perlu proteksi lagi di sini.
-  return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 overflow-y-auto">
-        {children} {/* Konten halaman utama akan dirender di sini */}
-      </div>
-    </div>
-  );
-};
-
-export default DashboardWithSidebar;
+// Komponen ini tidak diekspor sebagai default, karena AdminLayout akan menggunakannya
+// Ini adalah komponen Sidebar yang seharusnya diimpor dan digunakan oleh AdminLayout
+export default Sidebar;

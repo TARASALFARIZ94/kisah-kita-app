@@ -1,7 +1,20 @@
 // pages/admin/dashboard.js
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link'; // Import Link for navigation
 import { jwtDecode } from 'jwt-decode';
+import {
+  Users, // For User Management
+  Plane, // For Trip Analytics
+  ClipboardList, // For Rundowns (kept as part of stats, but not quick action)
+  Camera, // For Photos (kept as part of stats, but not quick action)
+  HelpCircle, // For FAQ Management
+  DollarSign, // For Split Bills (kept as part of stats, but not quick action)
+  BarChart3, // For Reports (kept as part of stats, but not quick action)
+  Settings, // For System Settings (kept as part of quick actions)
+  Bell, // For Notifications (kept as part of quick actions)
+  MessageSquare // For Content Review (kept as part of quick actions)
+} from 'lucide-react'; // Import necessary icons
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -10,6 +23,7 @@ export default function AdminDashboard() {
     trips: 0,
     rundowns: 0,
     photos: 0,
+    faqs: 0, // Tambahkan stats untuk FAQs
   });
 
   const [loading, setLoading] = useState(true);
@@ -24,39 +38,30 @@ export default function AdminDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  // <-- MULAI PERUBAHAN UTAMA DI SINI -->
-
   useEffect(() => {
     const checkAuthAndFetchStats = async () => {
-      setLoading(true); // Mulai loading state
+      setLoading(true);
 
-      // 1. Cek Token Autentikasi dari Local Storage
       const token = localStorage.getItem('authToken');
 
       if (!token) {
-        // Jika tidak ada token, arahkan pengguna ke halaman login
-        router.push('/login'); // Ganti '/login' dengan path halaman login Anda
+        router.push('/login');
         return;
       }
 
       let userRole = null;
       try {
-        // Decode token untuk mendapatkan informasi role
-        // Pastikan token Anda memiliki properti 'role'
-         const decodedToken = jwtDecode(token);
+        const decodedToken = jwtDecode(token);
         userRole = decodedToken.role;
 
-        // 2. Cek Role Pengguna
         if (userRole !== 'ADMIN') {
-          // Jika role bukan admin, arahkan ke halaman akses ditolak atau halaman beranda
-          alert('Anda tidak memiliki izin untuk mengakses halaman ini.'); // Pesan peringatan
-          router.push('/'); // Arahkan ke halaman beranda atau halaman khusus 'akses ditolak'
-          return; // Hentikan eksekusi lebih lanjut
+          alert('You do not have permission to access this page.');
+          router.push('/');
+          return;
         }
 
         // Opsional: Validasi token ke backend jika diperlukan (misal: `/api/verify-token`)
-        // Ini adalah lapisan keamanan tambahan untuk memastikan token masih valid dan belum kadaluarsa.
-        const verifyRes = await fetch('/api/verify-token', {
+        const verifyRes = await fetch('/api/verify-token', { // Pastikan endpoint ini ada
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -64,7 +69,6 @@ export default function AdminDashboard() {
         });
 
         if (!verifyRes.ok) {
-          // Jika verifikasi gagal (token tidak valid/kadaluarsa), hapus token dan redirect
           localStorage.removeItem('authToken');
           router.push('/login');
           return;
@@ -72,24 +76,23 @@ export default function AdminDashboard() {
 
       } catch (err) {
         console.error('Token decoding or verification failed:', err);
-        // Jika terjadi error saat decode atau verifikasi, anggap token tidak valid
         localStorage.removeItem('authToken');
         router.push('/login');
         return;
       }
 
-      // 3. Jika token valid dan role adalah admin, lanjutkan fetching data
       try {
-        const [userRes, tripRes, rundownRes, photoRes] = await Promise.all([
+        // Fetch semua data yang dibutuhkan untuk statistik
+        const [userRes, tripRes, rundownRes, photoRes, faqRes] = await Promise.all([
           fetch('/api/user', { headers: { 'Authorization': `Bearer ${token}` }}),
-          fetch('/api/trip', { headers: { 'Authorization': `Bearer ${token}` }}),
-          fetch('/api/rundown', { headers: { 'Authorization': `Bearer ${token}` }}),
-          fetch('/api/photo', { headers: { 'Authorization': `Bearer ${token}` }}),
+          fetch('/api/trip', { headers: { 'Authorization': `Bearer ${token}` }}), // Asumsi ini mengambil SEMUA trip
+          fetch('/api/rundown', { headers: { 'Authorization': `Bearer ${token}` }}), // Asumsi ini mengambil SEMUA rundown
+          fetch('/api/photo', { headers: { 'Authorization': `Bearer ${token}` }}), // Asumsi ini mengambil SEMUA photo
+          fetch('/api/faqs', { headers: { 'Authorization': `Bearer ${token}` }}), // Ambil FAQs
         ]);
 
-        if (!userRes.ok || !tripRes.ok || !rundownRes.ok || !photoRes.ok) {
-          // Jika ada API fetch yang gagal (misal: 401 Unauthorized), mungkin token kadaluarsa
-          if (userRes.status === 401 || tripRes.status === 401) {
+        if (!userRes.ok || !tripRes.ok || !rundownRes.ok || !photoRes.ok || !faqRes.ok) {
+          if (userRes.status === 401 || tripRes.status === 401 || rundownRes.status === 401 || photoRes.status === 401 || faqRes.status === 401) {
               localStorage.removeItem('authToken');
               router.push('/login');
               return;
@@ -101,12 +104,14 @@ export default function AdminDashboard() {
         const trips = await tripRes.json();
         const rundowns = await rundownRes.json();
         const photos = await photoRes.json();
+        const faqs = await faqRes.json(); // Data FAQs
 
         setStats({
           users: Array.isArray(users) ? users.length : 0,
           trips: Array.isArray(trips) ? trips.length : 0,
           rundowns: Array.isArray(rundowns) ? rundowns.length : 0,
           photos: Array.isArray(photos) ? photos.length : 0,
+          faqs: Array.isArray(faqs) ? faqs.length : 0, // Set jumlah FAQs
         });
       } catch (apiError) {
         console.error('Failed to fetch stats:', apiError);
@@ -117,76 +122,82 @@ export default function AdminDashboard() {
     };
 
     checkAuthAndFetchStats();
-  }, [router]); // Tambahkan `router` sebagai dependency useEffect
-
-  
+  }, [router]); 
 
   const statItems = [
     {
       label: 'Total Users',
       value: stats.users,
       icon: '👥',
-      changeType: 'positive'
+      changeType: 'positive', // Anda bisa menambahkan logika perubahan jika ada data historis
+      change: '+0%' // Placeholder
     },
     {
-      label: 'Active Trips',
+      label: 'Total Trips', // Label lebih umum untuk admin
       value: stats.trips,
       icon: '✈️',
-      changeType: 'positive'
+      changeType: 'positive',
+      change: '+0%'
     },
     {
-      label: 'Rundowns',
+      label: 'Total Rundowns', // Label lebih umum
       value: stats.rundowns,
       icon: '📋',
-      changeType: 'positive'
+      changeType: 'positive',
+      change: '+0%'
     },
     {
-      label: 'Photos Shared',
+      label: 'Total Photos', // Label lebih umum
       value: stats.photos,
       icon: '📸',
-      changeType: 'positive'
+      changeType: 'positive',
+      change: '+0%'
+    },
+    {
+      label: 'Total FAQs', // Item statistik untuk FAQs
+      value: stats.faqs,
+      icon: '❓', // Ikon untuk FAQ
+      changeType: 'positive',
+      change: '+0%'
     },
   ];
 
+  // Quick Actions yang disederhanakan dan terhubung ke Link
   const quickActions = [
-    { label: 'User Management', icon: '👤', color: 'blue', path: '/admin/users' },
-    { label: 'Trip Analytics', icon: '📊', color: 'green', path: '/admin/trips' },
-    { label: 'Content Review', icon: '🔍', color: 'purple', path: '/admin/content' },
-    { label: 'System Settings', icon: '⚙️', color: 'gray', path: '/admin/settings' },
-    { label: 'Reports', icon: '📄', color: 'indigo', path: '/admin/reports' },
-    { label: 'Notifications', icon: '🔔', color: 'red', path: '/admin/notifications' },
+    { label: 'User Management', icon: <Users size={24} />, path: '/admin/users' },
+    { label: 'Trip Management', icon: <Plane size={24} />, path: '/admin/trips' }, // Ubah ke Trip Management
+    { label: 'FAQ Management', icon: <HelpCircle size={24} />, path: '/admin/faqs' }, // Tambahkan FAQ Management
   ];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-white to-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
-      </div>
+        <div className="min-h-screen bg-gradient-to-br from-white to-gray-100 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
+        </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-8">
-          <div className="w-20 h-20 bg-gray-100 border-2 border-gray-300 rounded-full flex items-center justify-center mx-auto mb-6">
-            <span className="text-3xl">⚠️</span>
+        <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 flex items-center justify-center">
+          <div className="text-center max-w-md mx-auto p-8">
+            <div className="w-20 h-20 bg-gray-100 border-2 border-gray-300 rounded-full flex items-center justify-center mx-auto mb-6">
+              <span className="text-3xl">⚠️</span>
+            </div>
+            <h2 className="text-2xl font-bold text-black mb-4">Dashboard Error</h2>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
+            >
+              Try Again
+            </button>
           </div>
-          <h2 className="text-2xl font-bold text-black mb-4">Dashboard Error</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
-          >
-            Try Again
-          </button>
         </div>
-      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100">
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
@@ -206,7 +217,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8"> {/* Adjusted grid-cols to 5 for FAQ stat */}
           {statItems.map((item, index) => (
             <div
               key={index}
@@ -237,30 +248,27 @@ export default function AdminDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="gap-8 mb-8">
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xl">
-              <h3 className="text-xl font-bold text-black mb-6 flex items-center">
-                <span className="w-2 h-8 bg-gradient-to-b from-black to-gray-600 rounded-full mr-3"></span>
-                Quick Actions
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {quickActions.map((action, index) => (
-                  <button
-                    key={index}
-                    className="group p-4 bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
-                  >
-                    <div className="text-center">
-                      <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-gray-200 to-gray-300 group-hover:from-gray-300 group-hover:to-gray-400 rounded-lg flex items-center justify-center transition-all duration-200 border border-gray-300">
-                        <span className="text-xl grayscale group-hover:grayscale-0 transition-all duration-200">{action.icon}</span>
-                      </div>
-                      <p className="text-sm font-medium text-gray-700 group-hover:text-black transition-colors">
-                        {action.label}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
+        <div className="mb-8">
+          <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xl">
+            <h3 className="text-xl font-bold text-black mb-6 flex items-center">
+              <span className="w-2 h-8 bg-gradient-to-b from-black to-gray-600 rounded-full mr-3"></span>
+              Quick Actions
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4"> {/* Adjusted grid-cols */}
+              {quickActions.map((action, index) => (
+                <Link
+                  key={index}
+                  href={action.path} // Use Link to navigate
+                  className="group p-4 bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl flex flex-col items-center justify-center text-center"
+                >
+                  <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-gray-200 to-gray-300 group-hover:from-gray-300 group-hover:to-gray-400 rounded-lg flex items-center justify-center transition-all duration-200 border border-gray-300">
+                    <span className="text-xl text-gray-800 group-hover:text-black transition-colors">{action.icon}</span> {/* Use action.icon directly as JSX */}
+                  </div>
+                  <p className="text-sm font-medium text-gray-700 group-hover:text-black transition-colors">
+                    {action.label}
+                  </p>
+                </Link>
+              ))}
             </div>
           </div>
         </div>
@@ -300,9 +308,8 @@ export default function AdminDashboard() {
 
         {/* Footer */}
         <div className="text-center text-gray-500 text-sm">
-          <p>&copy; 2025 Trip Friends Admin Dashboard. Made with 🤍</p>
+          <p>&copy; {new Date().getFullYear()} Friends Trip Admin Dashboard. All Rights Reserved.</p>
         </div>
       </div>
-    </div>
   );
 }
