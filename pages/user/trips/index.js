@@ -46,9 +46,6 @@ const UserTripsPage = () => {
   const [showCreateConfirm, setShowCreateConfirm] = useState(false);
   const [showEditConfirm, setShowEditConfirm] = useState(false);
 
-  const [destinationSuggestion, setDestinationSuggestion] = useState('');
-  const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
-
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
@@ -231,7 +228,6 @@ const UserTripsPage = () => {
       endDate: trip.endDate
     });
     setErrors({});
-    setDestinationSuggestion(''); 
     setShowModal(true);
   };
 
@@ -240,7 +236,6 @@ const UserTripsPage = () => {
     setEditingTrip(null);
     setFormData({ title: '', destination: '', startDate: '', endDate: '' });
     setErrors({});
-    setDestinationSuggestion('');
   };
 
   const handleInputChange = (e) => {
@@ -256,54 +251,10 @@ const UserTripsPage = () => {
     setEditingTrip(null);
     setFormData({ title: '', destination: '', startDate: '', endDate: '' });
     setErrors({});
-    setDestinationSuggestion('');
     setShowModal(true);
   };
 
-  const getDestinationSuggestion = async () => {
-    setIsGeneratingSuggestion(true);
-    setDestinationSuggestion(''); 
-    const prompt = "Suggest a unique and appealing travel destination idea. Respond only with the name of the destination.";
-
-    try {
-        const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-        const apiKey = typeof __api_key !== 'undefined' ? __api_key : ""; 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-        
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        
-        const result = await response.json();
-
-        if (result.candidates && result.candidates.length > 0 &&
-            result.candidates[0].content && result.candidates[0].content.parts &&
-            result.candidates[0].content.parts.length > 0) {
-            const suggestedText = result.candidates[0].content.parts[0].text;
-            setDestinationSuggestion(suggestedText.trim());
-            setFormData(prev => ({ ...prev, destination: suggestedText.trim() }));
-            showNotification('Destination suggestion generated!', 'success');
-        } else {
-            console.error("LLM response full result:", result); 
-            if (result.promptFeedback && result.promptFeedback.blockReason) {
-                setDestinationSuggestion('Suggestion blocked due to safety concerns. Please try a different prompt.');
-                showNotification('Suggestion blocked. Try different prompt.', 'error');
-            } else {
-                setDestinationSuggestion('Failed to get suggestion.');
-                showNotification('Failed to get destination suggestion. Try again.', 'error');
-            }
-        }
-    } catch (err) {
-        console.error("Error generating destination suggestion:", err);
-        setDestinationSuggestion('Error generating suggestion.');
-        showNotification('Error generating destination suggestion. Check console.', 'error');
-    } finally {
-        setIsGeneratingSuggestion(false);
-    }
-  };
-
+  
 
   useEffect(() => {
     fetchTrips();
@@ -467,7 +418,7 @@ const UserTripsPage = () => {
                   {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
                 </div>
 
-                {/* Destination Input with Suggestion */}
+        
                 <div>
                   <label htmlFor="destination" className="block text-sm font-medium text-gray-700 mb-2">
                     <MapPin className="inline h-4 w-4 mr-1" />
@@ -486,24 +437,7 @@ const UserTripsPage = () => {
                       placeholder="e.g., Tokyo, Japan"
                       required
                     />
-                    <button
-                      type="button"
-                      onClick={getDestinationSuggestion}
-                      disabled={isGeneratingSuggestion}
-                      className="bg-gray-800 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-1 hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isGeneratingSuggestion ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      ) : (
-                        <Sparkles size={16} />
-                      )}
-                      {isGeneratingSuggestion ? 'Suggesting...' : 'Suggest'}
-                    </button>
                   </div>
-                  {errors.destination && <p className="mt-1 text-sm text-red-600">{errors.destination}</p>}
-                  {destinationSuggestion && !isGeneratingSuggestion && (
-                    <p className="mt-2 text-xs text-gray-500">Suggested: {destinationSuggestion}</p>
-                  )}
                 </div>
 
                 {/* Start Date Input */}

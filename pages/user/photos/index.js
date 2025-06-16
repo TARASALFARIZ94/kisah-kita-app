@@ -9,7 +9,7 @@ import {
   Plane, // For Trip selection
   Camera, // For Photo
   Link as LinkIcon, // For gdriveLink input
-  Flag, // For Reported status
+  // Flag, // Tidak diperlukan lagi di frontend user
   Info, // For general info/confirmation
   CheckCircle,
   AlertCircle,
@@ -38,7 +38,6 @@ const UserPhotosPage = () => {
   const [formData, setFormData] = useState({
     tripId: '', // Ini akan diisi otomatis dari selectedTripId
     gdriveLink: '',
-    reported: false
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -133,8 +132,6 @@ const UserPhotosPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    setFormData(prev => ({ ...prev, tripId: selectedTripId })); // Pastikan tripId disinkronkan
-
     if (!validateForm()) {
       return;
     }
@@ -161,11 +158,17 @@ const UserPhotosPage = () => {
       const method = editingPhoto ? "PUT" : "POST";
       const endpoint = editingPhoto ? `/api/user/photos?id=${editingPhoto.id}` : "/api/user/photos";
       
-      const payload = {
+      let payload = {
         tripId: parseInt(selectedTripId), // Pastikan tripId adalah integer
         gdriveLink: formData.gdriveLink.trim(),
-        reported: formData.reported // Boolean status
       };
+
+      // Jika ini mode EDIT, tambahkan 'reported' ke payload
+      // Karena di sisi user, reported tidak diinput, maka saat edit kita ambil dari photo yang sedang diedit
+      if (editingPhoto) {
+          payload.reported = editingPhoto.reported;
+      }
+      // Jika ini mode ADD (POST), 'reported' tidak disertakan, biarkan database yang beri default
 
       console.log("Submitting photo payload:", payload);
 
@@ -252,7 +255,6 @@ const UserPhotosPage = () => {
     setFormData({
       tripId: photo.tripId.toString(),
       gdriveLink: photo.gdriveLink,
-      reported: photo.reported
     });
     setErrors({});
     setShowModal(true);
@@ -261,15 +263,16 @@ const UserPhotosPage = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingPhoto(null);
-    setFormData({ tripId: selectedTripId, gdriveLink: '', reported: false }); 
+    // Reset formData ke nilai default untuk ADD
+    setFormData({ tripId: selectedTripId, gdriveLink: '' }); 
     setErrors({});
   };
 
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setFormData(prev => ({ 
       ...prev, 
-      [name]: type === 'checkbox' ? checked : value 
+      [name]: value 
     }));
     
     if (errors[name]) {
@@ -279,7 +282,8 @@ const UserPhotosPage = () => {
 
   const handleAddPhoto = () => {
     setEditingPhoto(null);
-    setFormData({ tripId: selectedTripId, gdriveLink: '', reported: false }); 
+    // Reset formData saat Add Photo
+    setFormData({ tripId: selectedTripId, gdriveLink: '' }); 
     setErrors({});
     setShowModal(true);
   };
@@ -383,14 +387,13 @@ const UserPhotosPage = () => {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Google Drive Link</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reported</th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {loadingPhotos ? (
                   <tr>
-                    <td colSpan="3" className="text-center py-8">
+                    <td colSpan="2" className="text-center py-8"> {/* colspan menjadi 2 */}
                       <div className="flex items-center justify-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mr-3"></div>
                         <span className="text-gray-600">Loading Photos...</span>
@@ -405,16 +408,6 @@ const UserPhotosPage = () => {
                           <LinkIcon size={16} className="text-gray-400" />
                           {photo.gdriveLink.length > 50 ? photo.gdriveLink.substring(0, 50) + '...' : photo.gdriveLink}
                         </a>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-                          photo.reported 
-                            ? 'bg-red-100 text-red-800' 
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          <Flag size={12} />
-                          {photo.reported ? 'Yes' : 'No'}
-                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                         <div className="flex justify-center gap-2">
@@ -438,7 +431,7 @@ const UserPhotosPage = () => {
                 
                 {!loadingPhotos && photos.length === 0 && selectedTripId && (
                     <tr>
-                        <td colSpan="3" className="text-center py-8">
+                        <td colSpan="2" className="text-center py-8"> {/* colspan menjadi 2 */}
                             <Camera className="mx-auto h-12 w-12 text-gray-400" />
                             <h3 className="mt-2 text-sm font-medium text-gray-900">No Photos for this Trip</h3>
                             <p className="mt-1 text-sm text-gray-600">Start by adding your first photo for this trip.</p>
@@ -517,22 +510,6 @@ const UserPhotosPage = () => {
                   {errors.gdriveLink && <p className="mt-1 text-sm text-red-600">{errors.gdriveLink}</p>}
                 </div>
 
-                {/* Reported Checkbox */}
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="reported"
-                    id="reported"
-                    checked={formData.reported}
-                    onChange={handleInputChange}
-                    className="h-4 w-4 text-black border-gray-300 rounded focus:ring-gray-500"
-                  />
-                  <label htmlFor="reported" className="ml-2 block text-sm font-medium text-gray-700">
-                    <Flag className="inline h-4 w-4 mr-1" />
-                    Mark as Reported
-                  </label>
-                </div>
-
                 <div className="flex gap-3 pt-4">
                   <button
                     type="button"
@@ -602,7 +579,7 @@ const UserPhotosPage = () => {
           </div>
         )}
 
-        {/* Create Confirmation Modal (not used for PhotoTable, but left if styling needed) */}
+        {/* Create Confirmation Modal */}
         {showCreateConfirm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
@@ -617,11 +594,10 @@ const UserPhotosPage = () => {
                   </div>
                 </div>
                 
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <div className="bg-gray-50 rounded-lg p-4 mb-6 break-words"> {/* Tambah break-words */}
                   <div className="space-y-2 text-sm">
                     <div><span className="font-medium">Trip:</span> {userTrips.find(t => t.id == selectedTripId)?.title || 'N/A'}</div>
                     <div><span className="font-medium">Link:</span> {formData.gdriveLink}</div>
-                    <div><span className="font-medium">Reported:</span> {formData.reported ? 'Yes' : 'No'}</div>
                   </div>
                 </div>
                 
@@ -656,7 +632,7 @@ const UserPhotosPage = () => {
           </div>
         )}
 
-        {/* Edit Confirmation Modal (not used for PhotoTable, but left if styling needed) */}
+        {/* Edit Confirmation Modal */}
         {showEditConfirm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
@@ -671,11 +647,10 @@ const UserPhotosPage = () => {
                   </div>
                 </div>
                 
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <div className="bg-gray-50 rounded-lg p-4 mb-6 break-words"> {/* Tambah break-words */}
                   <div className="space-y-2 text-sm">
                     <div><span className="font-medium">Trip:</span> {userTrips.find(t => t.id == selectedTripId)?.title || 'N/A'}</div>
                     <div><span className="font-medium">Link:</span> {formData.gdriveLink}</div>
-                    <div><span className="font-medium">Reported:</span> {formData.reported ? 'Yes' : 'No'}</div>
                   </div>
                 </div>
                 

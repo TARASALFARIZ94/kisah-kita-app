@@ -68,36 +68,9 @@ const UserDashboard = () => {
         console.error("Failed to fetch trips for count:", await tripsRes.json());
         setUpcomingTripsCount(0);
       }
-
-      // --- Fetch Unsettled Bills Count ---
-      // ASUMSI: Anda memiliki endpoint API untuk splitbills yang bisa memberikan jumlah tagihan belum terselesaikan.
-      // Contoh 1: Endpoint mengembalikan count langsung
-      const billsRes = await fetch('/api/splitbill', { // Ganti dengan endpoint yang sesuai
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (billsRes.ok) {
-        const billsData = await billsRes.json();
-        // Asumsi billsData adalah { unsettledCount: number } atau langsung number
-        setUnsettledBillsCount(billsData.unsettledCount || 0); 
-      } else {
-        console.error("Failed to fetch unsettled bills count:", await billsRes.json());
-        setUnsettledBillsCount(0);
-      }
-      
-      // Contoh 2 (jika /api/user/splitbills mengembalikan array tagihan dan Anda filter di frontend):
-      // const billsRes = await fetch('/api/user/splitbills', { headers: { 'Authorization': `Bearer ${token}` } });
-      // if (billsRes.ok) {
-      //   const allBills = await billsRes.json();
-      //   const unsettled = allBills.filter(bill => !bill.isSettled); // Asumsi ada properti isSettled
-      //   setUnsettledBillsCount(unsettled.length);
-      // } else { /* ... error handling ... */ }
-
     } catch (error) {
       console.error("Error fetching dashboard counts:", error);
       setUpcomingTripsCount(0);
-      setUnsettledBillsCount(0);
     } finally {
       setLoading(false);
     }
@@ -127,22 +100,17 @@ const UserDashboard = () => {
         </div>
 
         {/* Quick Stats / Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12"> {/* Hanya 2 kolom */}
-          <div className="bg-white rounded-xl shadow-lg p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Upcoming Trips</p>
-              <h2 className="text-3xl font-bold text-gray-900">{upcomingTripsCount}</h2> {/* Menggunakan data yang diambil */}
-            </div>
-            <Plane size={48} className="text-gray-400 opacity-30" />
-          </div>
-          <div className="bg-white rounded-xl shadow-lg p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Unsettled Bills</p>
-              <h2 className="text-3xl font-bold text-gray-900">{unsettledBillsCount}</h2> {/* Menggunakan data yang diambil */}
-            </div>
-            <DollarSign size={48} className="text-gray-400 opacity-30" />
-          </div>
-          {/* totalPhotos dihapus */}
+        <div className="grid grid-cols-1 gap-6 mb-12"> {/* Hanya 2 kolom */}
+            <div className="bg-white rounded-xl shadow-lg p-6 flex items-center justify-between">
+                <div>
+                    <p className="text-lg font-bold text-black">Upcoming Trips</p>
+                    </div>
+                
+                <div className="flex items-center gap-2"> {/* Tambahkan flex container untuk angka dan ikon */}
+                    <h2 className="text-3xl font-bold text-gray-900">{upcomingTripsCount}</h2> {/* Angka di sini */}
+                    <Plane size={48} className="text-gray-400 opacity-30" />
+                </div>
+                </div>
         </div>
 
         {/* Feature Sections - Tetap sama */}

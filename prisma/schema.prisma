@@ -61,6 +61,36 @@ model FAQ {
 
 }
 
+// Model untuk Bill (Dokumen Split Bill Keseluruhan)
+model Bill {
+  id            String   @id @default(uuid())
+  name          String
+  
+  participants  Json     // Akan menyimpan JSON string dari array of strings, e.g., '["Dinnar", "Nasywa", "Farhan"]'
+  // --- Akhir Perbaikan ---
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  expenses Expense[] // Item-item pengeluaran dalam bill ini
+}
+
+// Model untuk Item Pengeluaran
+model Expense {
+  id              String   @id @default(uuid())
+  billId          String
+  bill            Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  description     String
+  quantity        Int      @default(1)
+  totalAmount     Int      // Simpan dalam cents/pennies (misal Rp19.200 jadi 19200)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  paidBy          String   // Nama orang yang membayar, misal "Dinnar"
+
+  splitAmong      Json     // Akan menyimpan JSON string dari array of strings
+  // --- Akhir Perbaikan ---
+}
+
 enum Role {
   USER
   ADMIN
