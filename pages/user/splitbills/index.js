@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+// import { useRouter } from 'next/router'; // Uncomment if you want to use useRouter for reload
+
 import {
   Plus,
   Edit,
@@ -27,7 +29,10 @@ const getAuthToken = () => {
 };
 
 const formatCurrency = (amount) => {
-  return `Rp${amount.toLocaleString('id-ID')}`;
+  // Pastikan amount adalah angka sebelum formatting
+  const numericAmount = parseFloat(amount);
+  if (isNaN(numericAmount)) return 'Rp0'; // Handle non-numeric input gracefully
+  return `Rp${numericAmount.toLocaleString('id-ID')}`;
 };
 
 const calculateSplitSummary = (bill) => {
@@ -41,6 +46,7 @@ const calculateSplitSummary = (bill) => {
   });
 
   bill.expenses.forEach(expense => {
+    // totalAmount sudah dikalikan Quantity di backend
     if (expense.paidBy && summary[expense.paidBy]) {
       summary[expense.paidBy].totalPaid += expense.totalAmount;
     }
@@ -187,12 +193,12 @@ export default function SplitBillPage() {
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showCreateBillModal, setShowCreateBillModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showCreateConfirm, setShowCreateConfirm] = useState(false);
-  const [showEditConfirm, setShowEditConfirm] = useState(false);
+  const [showCreateConfirm, setShowCreateConfirm] = useState(false); // For Add expense confirmation
+  const [showEditConfirm, setShowEditConfirm] = useState(false);     // For Edit expense confirmation
 
   // Form data states
   const [expenseForm, setExpenseForm] = useState({
-    description: '', quantity: 1, totalAmount: '', paidBy: '', splitAmong: []
+    description: '', quantity: 1, amountPerItem: '', paidBy: '', splitAmong: [] // Renamed totalAmount to amountPerItem
   });
   const [newBillForm, setNewBillForm] = useState({
     name: '', participants: ''
@@ -213,7 +219,7 @@ export default function SplitBillPage() {
 
   const resetExpenseForm = () => {
     setExpenseForm({
-      description: '', quantity: 1, totalAmount: '',
+      description: '', quantity: 1, amountPerItem: '', // Renamed here too
       paidBy: (currentBill?.participants?.[0]) || '',
       splitAmong: currentBill?.participants || []
     });
@@ -264,10 +270,10 @@ export default function SplitBillPage() {
             setSelectedBillId(data[0].id);
             setCurrentBill(data[0]);
           } else {
-            // Update currentBill with fresh data if it exists
             const freshCurrentBill = data.find(bill => bill.id === selectedBillId);
             setCurrentBill(freshCurrentBill || null);
           }
+          // Perbarui expenseForm defaults setelah currentBill di-set
           setExpenseForm(prev => ({
             ...prev, paidBy: (currentBill?.participants?.[0]) || '', splitAmong: currentBill?.participants || []
           }));
@@ -311,12 +317,13 @@ export default function SplitBillPage() {
       const contentType = res.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         const textError = await res.text();
-        throw new Error(`Invalid response from /api/bills/<span class="math-inline">\{billId\} \(</span>{res.status}). Content: ${textError.substring(0, 100)}...`);
+        throw new Error(`Invalid response from /api/bills/${billId} (${res.status}). Content: ${textError.substring(0, 100)}...`);
       }
       const data = await res.json();
 
       if (res.ok) {
         setCurrentBill(data);
+        // Perbarui expenseForm defaults setelah currentBill di-set
         setExpenseForm(prev => ({
           ...prev, paidBy: (data.participants?.[0]) || '', splitAmong: data.participants || []
         }));
@@ -357,13 +364,8 @@ export default function SplitBillPage() {
 
       if (res.ok) {
         showNotification('Bill created successfully!', 'success');
-        setUserBills(prev => [...prev, newBillData]);
-        setSelectedBillId(newBillData.id);
-        setCurrentBill(newBillData);
+        await fetchUserBills(); // Reload all bills and set the new one as active
         closeCreateBillModal();
-        setExpenseForm(prev => ({
-          ...prev, paidBy: (newBillData.participants?.[0]) || '', splitAmong: newBillData.participants || []
-        }));
       } else {
         showNotification(newBillData.message || 'Failed to create bill.', 'error');
       }
@@ -377,11 +379,16 @@ export default function SplitBillPage() {
 
   const handleExpenseSubmit = async (e) => {
     e.preventDefault();
+    // PERBAIKAN: Hitung totalAmount dari quantity * amountPerItem
+    const quantity = parseInt(expenseForm.quantity);
+    const amountPerItem = parseFloat(expenseForm.amountPerItem); // Gunakan amountPerItem
+    const calculatedTotalAmount = quantity * amountPerItem;
+
     const isFormValid = (() => {
       const errors = {};
       if (!expenseForm.description.trim()) errors.description = 'Description is required.';
-      const amount = parseFloat(expenseForm.totalAmount);
-      if (isNaN(amount) || amount <= 0) errors.totalAmount = 'Valid amount required.';
+      if (isNaN(quantity) || quantity <= 0) errors.quantity = 'Valid quantity required.';
+      if (isNaN(amountPerItem) || amountPerItem <= 0) errors.amountPerItem = 'Valid amount per item required.'; // Perbaikan nama field
       if (!expenseForm.paidBy) errors.paidBy = 'Payer is required.';
       if (expenseForm.splitAmong.length === 0) errors.splitAmong = 'At least one participant.';
       setFormErrors(errors);
@@ -389,23 +396,24 @@ export default function SplitBillPage() {
     })();
     if (!isFormValid) return;
 
-    // Use current state values for confirmation, not form state that might be changed by re-render
+    // Use current form state values for confirmation message
     const confirmMessage = (
       <div>
         <p>Are you sure you want to {editingExpense ? 'update' : 'add'} this expense?</p>
         <div className="mt-3 p-3 bg-gray-50 rounded-lg">
           <p className="font-medium">{expenseForm.description}</p>
-          <p className="text-sm text-gray-600">Amount: {formatCurrency(parseFloat(expenseForm.totalAmount))}</p>
+          <p className="text-sm text-gray-600">Quantity: {expenseForm.quantity}</p>
+          <p className="text-sm text-gray-600">Amount per item: {formatCurrency(amountPerItem)}</p>
+          <p className="font-medium text-gray-900">Calculated Total: {formatCurrency(calculatedTotalAmount)}</p>
         </div>
       </div>
     );
 
+    // Tampilkan ConfirmationModal yang sudah disatukan (HILANGKAN POP MERAH NOTIFIKASI)
     if (editingExpense) {
-      setNotification({ message: confirmMessage, type: 'info', onConfirm: confirmSendExpenseData, title: 'Confirm Update' });
-      setShowEditConfirm(true);
+        setShowEditConfirm(true);
     } else {
-      setNotification({ message: confirmMessage, type: 'info', onConfirm: confirmSendExpenseData, title: 'Confirm Add' });
-      setShowCreateConfirm(true);
+        setShowCreateConfirm(true);
     }
   };
 
@@ -420,11 +428,17 @@ export default function SplitBillPage() {
     try {
       const method = editingExpense ? 'PUT' : 'POST';
       const endpoint = editingExpense ? `/api/expenses/${editingExpense.id}` : `/api/bills/${selectedBillId}/expenses`;
+      
+      // PERBAIKAN: Kirim totalAmount yang sudah dikalikan Quantity
+      const quantity = parseInt(expenseForm.quantity);
+      const amountPerItem = parseFloat(expenseForm.amountPerItem);
+      const totalAmountToSend = quantity * amountPerItem; // Ini yang akan dikirim ke API
+
       const payload = {
         ...(editingExpense ? {} : { billId: selectedBillId }),
         description: expenseForm.description.trim(),
-        quantity: expenseForm.quantity,
-        totalAmount: parseFloat(expenseForm.totalAmount),
+        quantity: quantity, // Kirim quantity juga ke API
+        totalAmount: totalAmountToSend, // Kirim totalAmount yang sudah dikalikan
         paidBy: expenseForm.paidBy,
         splitAmong: expenseForm.splitAmong
       };
@@ -436,14 +450,15 @@ export default function SplitBillPage() {
       const contentType = res.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         const textError = await res.text();
-        throw new Error(`Invalid response from <span class="math-inline">\{endpoint\} \(</span>{res.status}). Content: ${textError.substring(0, 100)}...`);
+        throw new Error(`Invalid response from ${endpoint} (${res.status}). Content: ${textError.substring(0, 100)}...`);
       }
       const result = await res.json();
 
       if (res.ok) {
         showNotification(editingExpense ? 'Expense updated!' : 'Expense added!', 'success');
         closeExpenseModal();
-        if (selectedBillId) await fetchExpensesForBill(selectedBillId);
+        // REFRESH DATA SETELAH CRUD: Panggil fetchUserBills() lagi untuk reload penuh
+        await fetchUserBills();
       } else {
         showNotification(result.message || 'Failed to save expense.', 'error');
       }
@@ -477,11 +492,12 @@ export default function SplitBillPage() {
 
       if (res.status === 204) { // Explicitly check for 204 No Content
         showNotification('Expense deleted successfully!', 'success');
-        if (selectedBillId) await fetchExpensesForBill(selectedBillId);
+        // REFRESH DATA SETELAH CRUD: Panggil fetchUserBills() lagi untuk reload penuh
+        await fetchUserBills();
       } else if (res.ok) { // For other 2xx status codes (e.g., 200 OK with body)
         const result = await res.json();
         showNotification(result.message || 'Expense deleted successfully!', 'success');
-        if (selectedBillId) await fetchExpensesForBill(selectedBillId);
+        await fetchUserBills();
       } else { // For 4xx, 5xx status codes
         let errorData = { message: `Failed with status ${res.status}` };
         const contentType = res.headers.get('content-type');
@@ -496,7 +512,7 @@ export default function SplitBillPage() {
       }
     } catch (error) {
       console.error('Error deleting expense:', error);
-      showNotification('Network error. Please try again.', 'error');
+      showNotification('Network error or invalid API response.', 'error');
     } finally {
       setSubmitting(false);
       setShowDeleteConfirm(false);
@@ -529,8 +545,6 @@ export default function SplitBillPage() {
   // Effect 2: Fetch expenses for the selected bill
   useEffect(() => {
     if (selectedBillId) {
-      // Only fetch if currentBill is not set or its ID doesn't match selectedBillId
-      // This prevents infinite loops if currentBill updates trigger this effect
       if (!currentBill || currentBill.id !== selectedBillId) {
         fetchExpensesForBill(selectedBillId);
       }
@@ -538,7 +552,8 @@ export default function SplitBillPage() {
       setCurrentBill(null); // Clear current bill if no ID selected
       setLoadingExpenses(false);
     }
-  }, [selectedBillId, userBills]); // Depend on selectedBillId and userBills (for initial data)
+  }, [selectedBillId, userBills, currentBill]); // Depend on selectedBillId, userBills, currentBill to react to changes
+
 
   // --- RENDER LOGIC ---
   const summary = calculateSplitSummary(currentBill);
@@ -666,13 +681,28 @@ export default function SplitBillPage() {
                       <h4 className="font-semibold text-gray-900 mb-2">{expense.description}</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                         <div><span className="text-gray-600">Amount:</span><p className="font-medium text-lg text-gray-900">{formatCurrency(expense.totalAmount)}</p></div>
+                        {/* PERBAIKAN: Tampilkan Quantity di sini */}
+                        <div><span className="text-gray-600">Quantity:</span><p className="font-medium text-gray-900">{expense.quantity}</p></div>
+                        {/* Perbaiki layout grid jika Anda ingin Quantity sejajar */}
+                        {/* Jika ingin seperti gambar, Quantity di baris terpisah */}
+                        {/* <div><span className="text-gray-600">Quantity:</span><p className="font-medium text-gray-900">{expense.quantity}</p></div> */}
                         <div><span className="text-gray-600">Paid by:</span><p className="font-medium text-gray-900">{expense.paidBy}</p></div>
                         <div><span className="text-gray-600">Split among:</span><p className="font-medium text-gray-900">{expense.splitAmong?.join(', ') || 'No one'}</p></div>
                       </div>
-                      {expense.quantity > 1 && (<div className="mt-2 text-sm text-gray-600">Quantity: {expense.quantity}</div>)}
+                      {/* Original quantity display, now integrated into the grid */}
+                      {/* {expense.quantity > 1 && (<div className="mt-2 text-sm text-gray-600">Quantity: {expense.quantity}</div>)} */}
                     </div>
                     <div className="flex gap-2 ml-4">
-                      <button onClick={() => { setEditingExpense(expense); setShowExpenseModal(true); setExpenseForm({ ...expenseForm, ...expense, totalAmount: expense.totalAmount.toString() }); }} className="p-2 text-gray-600 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors" title="Edit expense"><Edit size={16} /></button>
+                      <button onClick={() => {
+                          setEditingExpense(expense);
+                          setShowExpenseModal(true);
+                          setExpenseForm({
+                              ...expenseForm,
+                              ...expense,
+                              // PERBAIKAN: Saat edit, totalAmount dibagi quantity untuk mendapatkan amountPerItem
+                              amountPerItem: (expense.totalAmount / expense.quantity || 0).toString()
+                          });
+                      }} className="p-2 text-gray-600 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors" title="Edit expense"><Edit size={16} /></button>
                       <button onClick={() => handleDeleteExpense(expense)} className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete expense"><Trash2 size={16} /></button>
                     </div>
                   </div>
@@ -722,9 +752,13 @@ export default function SplitBillPage() {
               <FormField label="Quantity" error={formErrors.quantity}>
                 <Input type="number" name="quantity" value={expenseForm.quantity} onChange={(e) => setExpenseForm({ ...expenseForm, quantity: parseInt(e.target.value) || 1 })} min="1" error={formErrors.quantity} />
               </FormField>
-              <FormField label="Total Amount" required icon={DollarSign} error={formErrors.totalAmount}>
-                <Input type="number" name="totalAmount" value={expenseForm.totalAmount} onChange={(e) => setExpenseForm({ ...expenseForm, totalAmount: e.target.value })} placeholder="0" min="0" step="0.01" error={formErrors.totalAmount} />
+              <FormField label="Amount per Item" required icon={DollarSign} error={formErrors.amountPerItem}> {/* Renamed label */}
+                <Input type="number" name="amountPerItem" value={expenseForm.amountPerItem} onChange={(e) => setExpenseForm({ ...expenseForm, amountPerItem: e.target.value })} placeholder="0" min="0" step="0.01" error={formErrors.amountPerItem} /> {/* Renamed name */}
               </FormField>
+            </div>
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-700"> {/* Display calculated total */}
+                <span className="font-medium">Calculated Total Expense:</span>
+                {formatCurrency(parseInt(expenseForm.quantity || '1') * parseFloat(expenseForm.amountPerItem || '0'))}
             </div>
             <FormField label="Paid By" required error={formErrors.paidBy}>
               <Select name="paidBy" value={expenseForm.paidBy} onChange={(e) => setExpenseForm({ ...expenseForm, paidBy: e.target.value })} error={formErrors.paidBy}>
@@ -782,7 +816,9 @@ export default function SplitBillPage() {
               <p>Are you sure you want to add this expense?</p>
               <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                 <p className="font-medium text-gray-900">{expenseForm.description}</p>
-                <p className="text-sm text-gray-600">Amount: {formatCurrency(parseFloat(expenseForm.totalAmount))}</p>
+                <p className="text-sm text-gray-600">Quantity: {expenseForm.quantity}</p> {/* Show quantity in confirm modal */}
+                <p className="text-sm text-gray-600">Amount per item: {formatCurrency(parseFloat(expenseForm.amountPerItem))}</p> {/* Show amount per item */}
+                <p className="font-medium text-gray-900">Calculated Total: {formatCurrency(parseInt(expenseForm.quantity || '1') * parseFloat(expenseForm.amountPerItem || '0'))}</p> {/* Show calculated total */}
               </div>
             </div>
           } type="info" isLoading={submitting}
@@ -794,7 +830,9 @@ export default function SplitBillPage() {
               <p>Are you sure you want to update this expense?</p>
               <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                 <p className="font-medium text-gray-900">{expenseForm.description}</p>
-                <p className="text-sm text-gray-600">Amount: {formatCurrency(parseFloat(expenseForm.totalAmount))}</p>
+                <p className="text-sm text-gray-600">Quantity: {expenseForm.quantity}</p> {/* Show quantity in confirm modal */}
+                <p className="text-sm text-gray-600">Amount per item: {formatCurrency(parseFloat(expenseForm.amountPerItem))}</p> {/* Show amount per item */}
+                <p className="font-medium text-gray-900">Calculated Total: {formatCurrency(parseInt(expenseForm.quantity || '1') * parseFloat(expenseForm.amountPerItem || '0'))}</p> {/* Show calculated total */}
               </div>
             </div>
           } type="info" isLoading={submitting}
@@ -807,6 +845,7 @@ export default function SplitBillPage() {
               {expenseToDelete && (
                 <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                   <p className="font-medium text-gray-900">{expenseToDelete.description}</p>
+                  <p className="text-sm text-gray-600">Quantity: {expenseToDelete.quantity}</p> {/* Show quantity in delete confirm modal */}
                   <p className="text-sm text-gray-600">Amount: {formatCurrency(expenseToDelete.totalAmount)}</p>
                 </div>
               )}

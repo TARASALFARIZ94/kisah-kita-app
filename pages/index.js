@@ -1,29 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Link from 'next/link'; 
+import Link from 'next/link';
 import Image from 'next/image'; // Import the Image component from Next.js
-import { 
-  Menu, 
-  X, 
-  Home, 
-  Users, 
-  Plane, 
-  ClipboardList, 
+import {
+  Menu,
+  X,
+  Home,
+  Users,
+  Plane,
+  ClipboardList,
   Camera,
-  Star, 
-  CheckCircle, 
+  Star,
+  CheckCircle,
   ArrowRight,
-  DollarSign 
+  DollarSign
 } from 'lucide-react';
 
 const LandingPage = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const sectionsRef = useRef([]); 
-  
+  const sectionsRef = useRef([]);
+
   const texts = ["Manage Trips.", "Organize Rundowns.", "Share Photos.", "Connect Friends."];
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
   const [displayText, setDisplayText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-  const [typingSpeed, setTypingSpeed] = useState(150); 
+  const [typingSpeed, setTypingSpeed] = useState(150);
 
   useEffect(() => {
     let timer;
@@ -31,25 +31,25 @@ const LandingPage = () => {
       const currentFullText = texts[currentTextIndex];
       if (isDeleting) {
         setDisplayText(currentFullText.substring(0, displayText.length - 1));
-        setTypingSpeed(50); 
+        setTypingSpeed(50);
       } else {
         setDisplayText(currentFullText.substring(0, displayText.length + 1));
-        setTypingSpeed(150); 
+        setTypingSpeed(150);
       }
 
       if (!isDeleting && displayText === currentFullText) {
-        timer = setTimeout(() => setIsDeleting(true), 1500); 
+        timer = setTimeout(() => setIsDeleting(true), 1500);
       } else if (isDeleting && displayText === '') {
         setIsDeleting(false);
         setCurrentTextIndex((prev) => (prev + 1) % texts.length);
-        setTypingSpeed(300); 
+        setTypingSpeed(300);
       }
     };
 
     timer = setTimeout(handleTyping, typingSpeed);
 
     return () => clearTimeout(timer);
-  }, [displayText, isDeleting, currentTextIndex, typingSpeed]);
+  }, [displayText, isDeleting, currentTextIndex, typingSpeed, texts]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -58,13 +58,13 @@ const LandingPage = () => {
           if (entry.isIntersecting) {
             entry.target.classList.add('fade-in-up-visible');
           } else {
-            entry.target.classList.remove('fade-in-up-visible'); 
+            entry.target.classList.remove('fade-in-up-visible');
           }
         });
       },
       {
-        threshold: 0.1, 
-        rootMargin: '0px 0px -10% 0px', 
+        threshold: 0.1,
+        rootMargin: '0px 0px -10% 0px',
       }
     );
 
@@ -83,7 +83,7 @@ const LandingPage = () => {
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
-      setIsMobileMenuOpen(false); 
+      setIsMobileMenuOpen(false);
     }
   };
 
@@ -140,28 +140,42 @@ const LandingPage = () => {
         </div>
       )}
 
-      {/* Hero Section */}
-      <section id="home" className="relative h-screen flex items-center justify-center text-center p-6 bg-gradient-to-br from-gray-100 to-gray-200 pt-20">
-        <div ref={el => sectionsRef.current[0] = el} className="max-w-4xl animate-fade-in-up">
-          <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 leading-tight mb-6">
-            Your Special Friend to <br className="hidden md:inline"/> 
-            <span className="text-black">
+      {/* Hero Section - DENGAN BACKGROUND IMAGE HITAM PUTIH */}
+      <section id="home" className="relative h-screen flex items-center justify-center text-center p-6 pt-20 overflow-hidden">
+        {/* Background Image (Using Next.js Image component for optimization) */}
+        <Image
+          src="/images/bg-hero.jpg" // Ganti dengan path ke gambar Anda di folder public
+          alt="Friends Trip background image"
+          layout="fill" // Membuat gambar mengisi elemen parent
+          objectFit="cover" // Memastikan gambar menutupi seluruh area, memotong jika perlu
+          quality={85} // Kualitas gambar (opsional, sesuaikan sesuai kebutuhan)
+          priority // Prioritaskan pemuatan gambar ini karena ini adalah elemen LCP
+          className="absolute inset-0 z-0 filter grayscale contrast-125 brightness-75" // Filter grayscale, kontras, dan kecerahan
+        />
+        {/* Overlay untuk teks agar lebih mudah dibaca */}
+        <div className="absolute inset-0 z-10 bg-black opacity-50"></div> {/* Dark overlay yang lebih kuat */}
+
+        {/* Konten Hero Section (Pastikan z-index lebih tinggi dari background dan overlay) */}
+        <div ref={el => sectionsRef.current[0] = el} className="max-w-4xl z-20 text-white animate-fade-in-up"> {/* Konten teks berwarna putih */}
+          <h1 className="text-5xl md:text-6xl font-extrabold leading-tight mb-6">
+            Your Special Friend to <br className="hidden md:inline"/>
+            <span className="text-white"> {/* Teks utama putih untuk kontras */}
               {displayText}
             </span>
             <span className="animate-blink">|</span>
           </h1>
-          <p className="text-lg md:text-xl text-gray-700 mb-8 max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl mb-8 max-w-2xl mx-auto opacity-90">
             Friends Trip helps you seamlessly plan, manage, and share your group adventures.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <button 
+            <button
               onClick={() => scrollToSection('features')}
-              className="bg-black text-white px-8 py-3 rounded-lg font-semibold text-lg shadow-xl hover:bg-gray-800 transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2"
+              className="bg-gray-800 text-white px-8 py-3 rounded-lg font-semibold text-lg shadow-xl hover:bg-gray-700 transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2"
             >
               Learn More <ArrowRight size={20} />
             </button>
-            <Link 
-              href="/login" 
+            <Link
+              href="/login"
               className="bg-white text-gray-800 px-8 py-3 rounded-lg font-semibold text-lg shadow-xl hover:bg-gray-100 transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 border border-gray-200"
             >
               Get Started
@@ -181,7 +195,7 @@ const LandingPage = () => {
             {/* Feature 1: Trip Planning */}
             <div ref={el => sectionsRef.current[3] = el} className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 animate-fade-in-up delay-300">
               <div className="p-4 bg-gray-200 rounded-full inline-flex mb-4">
-                <Plane size={32} className="text-gray-800" /> 
+                <Plane size={32} className="text-gray-800" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Trip Planning</h3>
               <p className="text-gray-600">Create and manage every detail of your group trips with ease.</p>
@@ -189,7 +203,7 @@ const LandingPage = () => {
             {/* Feature 2: Rundown Management */}
             <div ref={el => sectionsRef.current[4] = el} className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 animate-fade-in-up delay-400">
               <div className="p-4 bg-gray-300 rounded-full inline-flex mb-4">
-                <ClipboardList size={32} className="text-gray-800" /> 
+                <ClipboardList size={32} className="text-gray-800" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Rundown Management</h3>
               <p className="text-gray-600">Create detailed itineraries and share activity schedules with all participants.</p>
@@ -197,7 +211,7 @@ const LandingPage = () => {
             {/* Feature 3: Split Bills */}
             <div ref={el => sectionsRef.current[5] = el} className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 animate-fade-in-up delay-500">
               <div className="p-4 bg-gray-400 rounded-full inline-flex mb-4">
-                <DollarSign size={32} className="text-gray-900" /> 
+                <DollarSign size={32} className="text-gray-900" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Split Bills</h3>
               <p className="text-gray-600">Track and calculate group expenses easily, no drama involved.</p>
@@ -205,7 +219,7 @@ const LandingPage = () => {
             {/* Feature 4: Photo Gallery */}
             <div ref={el => sectionsRef.current[6] = el} className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 animate-fade-in-up delay-600">
               <div className="p-4 bg-gray-500 rounded-full inline-flex mb-4">
-                <Camera size={32} className="text-white" /> 
+                <Camera size={32} className="text-white" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Photo Gallery</h3>
               <p className="text-gray-600">Gather and share all your trip photos in one place.</p>
@@ -230,13 +244,12 @@ const LandingPage = () => {
             </p>
           </div>
           <div ref={el => sectionsRef.current[8] = el} className="relative w-full h-80 rounded-xl shadow-xl overflow-hidden animate-fade-in-up delay-200">
-            {/* Replaced placeholder with an actual Image component */}
-            <Image 
-              src="/images/about.jpg" // Path to your local image in the public folder
-              alt="Travel illustration representing trip planning and sharing" 
-              layout="fill" // Use layout="fill" for responsive images within a parent with defined dimensions
-              objectFit="cover" // Ensure the image covers the entire container
-              quality={75} // Image quality (optional)
+            <Image
+              src="/images/about.jpg"
+              alt="Travel illustration representing trip planning and sharing"
+              layout="fill"
+              objectFit="cover"
+              quality={75}
             />
           </div>
         </div>
@@ -324,7 +337,7 @@ const LandingPage = () => {
 
         .animate-blink {
           animation: blink-caret 0.75s step-end infinite;
-          font-weight: 300; 
+          font-weight: 300;
         }
 
         @keyframes blink-caret {

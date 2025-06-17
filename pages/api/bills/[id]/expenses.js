@@ -5,7 +5,7 @@ import db from '@/lib/db'; // Sesuaikan path jika berbeda
 export default async function handler(req, res) {
   const { id: billId } = req.query; // Ini akan menjadi UUID string dari URL
 
-  console.log(`[API /api/bills/[id]/expenses] Received request. Bill ID: ${billId}, Method: ${req.method}`);
+  console.log(`[API /api/bills/[id]/expenses] Received POST request for Bill ID: ${billId}`);
   console.log('[API /api/bills/[id]/expenses] Request Body:', req.body);
 
   const token = req.headers.authorization?.split(' ')[1];
@@ -14,27 +14,25 @@ export default async function handler(req, res) {
     return res.status(401).json({ message: 'Authorization token missing.' });
   }
   // TODO: Verifikasi token dan pastikan user berhak menambahkan expense ke bill ini
-  // const userId = verifyAuthToken(token);
-  // if (!userId) { return res.status(401).json({ message: 'Invalid or expired token.' }); }
 
-
-  // Validasi basic format UUID
+  // Validasi basic format UUID untuk billId
   if (typeof billId !== 'string' || !billId.match(/^[0-9a-fA-F-]{36}$/)) {
     console.error('[API /api/bills/[id]/expenses] Invalid billId format received:', billId);
     return res.status(400).json({ message: 'Invalid Bill ID format. Expected a UUID string.' });
   }
 
   if (req.method === 'POST') {
+    // Ambil quantity dan totalAmount dari body
     const { description, quantity, totalAmount, paidBy, splitAmong } = req.body;
 
-    // Validasi input data
+    // --- PERBAIKAN: Validasi quantity dan totalAmount ---
     if (!description || typeof description !== 'string' || description.trim() === '') {
       return res.status(400).json({ message: 'Description is required and must be a string.' });
     }
-    if (typeof quantity !== 'number' || quantity <= 0) {
-      return res.status(400).json({ message: 'Quantity is required and must be a positive number.' });
+    if (typeof quantity !== 'number' || quantity <= 0 || !Number.isInteger(quantity)) { // Validasi quantity sebagai integer positif
+      return res.status(400).json({ message: 'Quantity is required and must be a positive integer.' });
     }
-    if (typeof totalAmount !== 'number' || totalAmount <= 0) {
+    if (typeof totalAmount !== 'number' || totalAmount <= 0) { // totalAmount bisa float sekarang
       return res.status(400).json({ message: 'Total amount is required and must be a positive number.' });
     }
     if (!paidBy || typeof paidBy !== 'string' || paidBy.trim() === '') {
@@ -48,7 +46,6 @@ export default async function handler(req, res) {
     }
 
     try {
-      // Pastikan bill dengan billId yang diberikan ada sebelum membuat expense
       const existingBill = await db.bill.findUnique({
         where: { id: billId }
       });
@@ -58,17 +55,14 @@ export default async function handler(req, res) {
         return res.status(404).json({ message: 'Parent Bill not found with the provided ID.' });
       }
 
-      // TODO: Anda mungkin ingin memverifikasi bahwa `paidBy` dan setiap nama di `splitAmong`
-      // adalah bagian dari `existingBill.participants` untuk konsistensi data.
-
       const newExpense = await db.expense.create({
         data: {
-          bill: { connect: { id: billId } }, // Gunakan billId langsung (string UUID)
+          bill: { connect: { id: billId } },
           description,
-          quantity,
-          totalAmount,
+          quantity,    // <-- Simpan quantity
+          totalAmount, // <-- Simpan totalAmount yang sudah dikalikan dari frontend
           paidBy,
-          splitAmong, // db Client akan otomatis meng-handle JSON stringification
+          splitAmong,
         },
       });
       console.log(`[API /api/bills/[id]/expenses] Expense created successfully with ID: ${newExpense.id} for Bill: ${billId}`);

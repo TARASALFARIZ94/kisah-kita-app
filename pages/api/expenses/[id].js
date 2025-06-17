@@ -5,7 +5,7 @@ import db from '@/lib/db'; // Sesuaikan path jika berbeda
 export default async function handler(req, res) {
   const { id: expenseId } = req.query; // Ini akan menjadi UUID string dari URL
 
-  console.log(`[API /api/expenses/[id]] Received request. Expense ID: ${expenseId}, Method: ${req.method}`);
+  console.log(`[API /api/expenses/[id]] Received ${req.method} request for Expense ID: ${expenseId}`);
   console.log('[API /api/expenses/[id]] Request Body (for PUT):', req.body);
 
   const token = req.headers.authorization?.split(' ')[1];
@@ -14,9 +14,6 @@ export default async function handler(req, res) {
     return res.status(401).json({ message: 'Authorization token missing.' });
   }
   // TODO: Verifikasi token dan pastikan user berhak mengelola expense ini
-  // const userId = verifyAuthToken(token);
-  // if (!userId) { return res.status(401).json({ message: 'Invalid or expired token.' }); }
-
 
   // Validasi basic format UUID untuk expenseId
   if (typeof expenseId !== 'string' || !expenseId.match(/^[0-9a-fA-F-]{36}$/)) {
@@ -25,16 +22,17 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PUT') {
+    // Ambil quantity dan totalAmount dari body
     const { description, quantity, totalAmount, paidBy, splitAmong } = req.body;
 
-    // Validasi input data untuk PUT
+    // --- PERBAIKAN: Validasi quantity dan totalAmount ---
     if (!description || typeof description !== 'string' || description.trim() === '') {
       return res.status(400).json({ message: 'Description is required and must be a string.' });
     }
-    if (typeof quantity !== 'number' || quantity <= 0) {
-      return res.status(400).json({ message: 'Quantity is required and must be a positive number.' });
+    if (typeof quantity !== 'number' || quantity <= 0 || !Number.isInteger(quantity)) { // Validasi quantity sebagai integer positif
+      return res.status(400).json({ message: 'Quantity is required and must be a positive integer.' });
     }
-    if (typeof totalAmount !== 'number' || totalAmount <= 0) {
+    if (typeof totalAmount !== 'number' || totalAmount <= 0) { // totalAmount bisa float sekarang
       return res.status(400).json({ message: 'Total amount is required and must be a positive number.' });
     }
     if (!paidBy || typeof paidBy !== 'string' || paidBy.trim() === '') {
@@ -48,10 +46,9 @@ export default async function handler(req, res) {
     }
 
     try {
-      // Cek apakah expense ada dan apakah user berhak mengupdatenya (jika ada userId)
       const existingExpense = await db.expense.findUnique({
         where: { id: expenseId },
-        include: { bill: true } // Sertakan bill untuk cek kepemilikan jika perlu
+        include: { bill: true }
       });
 
       if (!existingExpense) {
@@ -59,17 +56,12 @@ export default async function handler(req, res) {
         return res.status(404).json({ message: 'Expense not found with the provided ID.' });
       }
 
-      // TODO: Jika Anda punya creatorId di Bill, cek:
-      // if (existingExpense.bill.creatorId !== userId) {
-      //   return res.status(403).json({ message: 'Forbidden: You do not have permission to update this expense.' });
-      // }
-
       const updatedExpense = await db.expense.update({
-        where: { id: expenseId }, // Gunakan expenseId langsung (string UUID)
+        where: { id: expenseId },
         data: {
           description,
-          quantity,
-          totalAmount,
+          quantity,    // <-- Update quantity
+          totalAmount, // <-- Update totalAmount
           paidBy,
           splitAmong,
         },
@@ -78,41 +70,35 @@ export default async function handler(req, res) {
       return res.status(200).json(updatedExpense);
     } catch (error) {
       console.error(`[API /api/expenses/[id]] Backend Error: Failed to update expense ${expenseId}:`, error);
-      if (error.code === 'P2025') { // db error code for record not found
+      if (error.code === 'P2025') {
          return res.status(404).json({ message: 'Expense not found with the provided ID.' });
       }
       return res.status(500).json({ message: 'Failed to update expense.', details: error.message });
     }
   } else if (req.method === 'DELETE') {
+    // ... logic for DELETE method (tidak ada perubahan di sini) ...
     try {
-      // Cek apakah expense ada dan apakah user berhak menghapusnya (jika ada userId)
-      const existingExpense = await db.expense.findUnique({
-        where: { id: expenseId },
-        include: { bill: true } // Sertakan bill untuk cek kepemilikan jika perlu
-      });
+        const existingExpense = await db.expense.findUnique({
+            where: { id: expenseId },
+            include: { bill: true }
+        });
 
-      if (!existingExpense) {
-        console.warn(`[API /api/expenses/[id]] Expense ${expenseId} not found for deletion.`);
-        return res.status(404).json({ message: 'Expense not found for deletion.' });
-      }
+        if (!existingExpense) {
+            console.warn(`[API /api/expenses/[id]] Expense ${expenseId} not found for deletion.`);
+            return res.status(404).json({ message: 'Expense not found for deletion.' });
+        }
 
-      // TODO: Jika Anda punya creatorId di Bill, cek:
-      // if (existingExpense.bill.creatorId !== userId) {
-      //   return res.status(403).json({ message: 'Forbidden: You do not have permission to delete this expense.' });
-      // }
-
-      await db.expense.delete({
-        where: { id: expenseId },
-      });
-      console.log(`[API /api/expenses/[id]] Expense ${expenseId} deleted successfully.`);
-      // Status 204 No Content adalah respons standar untuk DELETE sukses tanpa body
-      return res.status(204).end();
+        await db.expense.delete({
+            where: { id: expenseId },
+        });
+        console.log(`[API /api/expenses/[id]] Expense ${expenseId} deleted successfully.`);
+        return res.status(204).end();
     } catch (error) {
-      console.error(`[API /api/expenses/[id]] Backend Error: Failed to delete expense ${expenseId}:`, error);
-      if (error.code === 'P2025') { // db error code for record not found
-        return res.status(404).json({ message: 'Expense not found for deletion.' });
-      }
-      return res.status(500).json({ message: 'Failed to delete expense.', details: error.message });
+        console.error(`[API /api/expenses/[id]] Backend Error: Failed to delete expense ${expenseId}:`, error);
+        if (error.code === 'P2025') {
+            return res.status(404).json({ message: 'Expense not found for deletion.' });
+        }
+        return res.status(500).json({ message: 'Failed to delete expense.', details: error.message });
     }
   } else {
     console.warn(`[API /api/expenses/[id]] Method Not Allowed: ${req.method}`);

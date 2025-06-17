@@ -62,7 +62,7 @@ export default function RegisterPage() {
         {/* Back to Landing Button */}
         <div className="mb-6">
           <Link 
-            href="/landing"
+            href="/"
             className="inline-flex items-center px-3 py-2 bg-gray-100/80 backdrop-blur-sm border border-gray-300/50 rounded-lg text-gray-600 hover:text-gray-800 hover:bg-gray-200/80 transition-all duration-300 group text-sm" 
           >
             <svg className="w-4 h-4 mr-2 transform group-hover:-translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
