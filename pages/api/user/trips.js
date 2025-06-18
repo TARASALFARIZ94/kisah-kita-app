@@ -117,18 +117,47 @@ export default async function handler(req, res) {
 
       if (!id) return res.status(400).json({ message: 'Missing trip ID.' });
 
+      // --- LOGIKA PENCEGAHAN PENGHAPUSAN JIKA ADA DEPENDENSI ---
+      const tripIdInt = parseInt(id);
+
+      // Periksa dependensi pada model 'Rundown'
+      const dependentRundownsCount = await db.rundown.count({
+        where: {
+          tripId: tripIdInt,
+        },
+      });
+
+      // Periksa dependensi pada model 'Photo'
+      const dependentPhotosCount = await db.photo.count({
+        where: {
+          tripId: tripIdInt,
+        },
+      });
+
+      if (dependentRundownsCount > 0 || dependentPhotosCount > 0) {
+        let message = `Tidak dapat menghapus perjalanan (ID: ${id}) karena masih memiliki catatan terkait. Harap hapus catatan terkait terlebih dahulu.`;
+        if (dependentRundownsCount > 0) {
+          message += ` Ditemukan ${dependentRundownsCount} rundown.`;
+        }
+        if (dependentPhotosCount > 0) {
+          message += ` Ditemukan ${dependentPhotosCount} foto.`;
+        }
+        return res.status(400).json({ message });
+      }
+
+      // Jika tidak ada dependensi, lanjutkan dengan penghapusan trip
       // Pastikan pengguna hanya bisa delete trip miliknya sendiri
-      await db.trip.deleteMany({ // Menggunakan deleteMany untuk menambahkan filter userId
+      const deletedTrip = await db.trip.deleteMany({
         where: { 
-          id: parseInt(id),
+          id: tripIdInt,
           userId: userId // Pastikan hanya bisa delete trip milik sendiri
         },
       });
 
-      // Periksa apakah trip benar-benar dihapus (opsional, jika yakin ID & userId selalu unik)
-      // Jika deleteMany tidak menghapus apapun (karena tidak ditemukan atau bukan milik user),
-      // Anda bisa mengecek hasilnya untuk memberikan respons 404/403 yang lebih spesifik.
-      // Namun, untuk kesederhanaan, kita asumsikan 200 OK jika query berjalan tanpa error.
+      // Periksa apakah trip benar-benar dihapus
+      if (deletedTrip.count === 0) {
+        return res.status(404).json({ message: 'Trip not found or you do not have permission to delete this trip.' });
+      }
 
       return res.status(200).json({ message: 'Trip deleted successfully.' });
     }
@@ -140,8 +169,19 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error("API Error:", error);
     // Tangani error jika trip tidak ditemukan atau bukan milik user
-    if (error.code === 'P2025') { // Prisma error code for record not found
+    // P2025: Record not found (bisa terjadi jika trip tidak ada saat update/delete,
+    // meskipun kita sudah melakukan filter userId)
+    if (error.code === 'P2025') { 
       return res.status(404).json({ message: 'Trip not found or you do not have permission.' });
+    }
+    // P2003: Foreign key constraint violation (seharusnya tidak tercapai dengan logika pencegahan di atas,
+    // tetapi baik untuk tetap ada sebagai fallback)
+    if (error.code === 'P2003') {
+      return res.status(400).json({ message: 'Cannot delete trip due to existing dependencies.', details: error.meta });
+    }
+    // Menangkap TypeError jika properti 'count' tidak dapat diakses (misal: db.model undefined)
+    if (error instanceof TypeError && error.message.includes("Cannot read properties of undefined (reading 'count')")) {
+      return res.status(500).json({ message: 'Kesalahan internal server: Model database tidak ditemukan atau belum digenerate. Pastikan `db.rundown` dan `db.photo` ada di skema Prisma Anda dan jalankan `npx prisma generate`.', error: error.message });
     }
     return res.status(500).json({ message: 'Internal server error.', error: error.message });
   }

@@ -46,9 +46,10 @@ const UserTripsPage = () => {
   const [showCreateConfirm, setShowCreateConfirm] = useState(false);
   const [showEditConfirm, setShowEditConfirm] = useState(false);
 
-  const showNotification = (message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
+  // showNotification sekarang juga bisa menerima HTML content
+  const showNotification = (message, type = 'success', isHtml = false) => {
+    setNotification({ message, type, isHtml });
+    setTimeout(() => setNotification(null), 7000); // Tampilkan notifikasi lebih lama untuk pesan error dengan link
   };
 
   const fetchTrips = async () => {
@@ -203,7 +204,25 @@ const UserTripsPage = () => {
       } else {
         const errorData = await res.json();
         console.error("Failed to delete Trip:", errorData);
-        showNotification(errorData.message || 'Failed to delete Trip. Please try again.', 'error');
+
+        // --- Logika Penanganan Error untuk dependensi yang lebih user-friendly ---
+        let errorMessage = errorData.message || 'Failed to delete Trip. Please try again.';
+        let isHtmlMessage = false;
+
+        // Cek apakah pesan error dari API mengindikasikan dependensi Rundown atau Photo
+        if (errorMessage.includes("Tidak dapat menghapus perjalanan") && errorMessage.includes("karena masih memiliki catatan terkait")) {
+          const tripId = tripToDelete.id; // Dapatkan ID trip yang gagal dihapus
+
+          // Buat tautan ke halaman Rundown dan Photo
+          const rundownsLink = `<a href="/user/rundowns" class="text-blue-200 hover:text-blue-100 underline">rundown</a>`;
+          const photosLink = `<a href="/user/photos" class="text-blue-200 hover:text-blue-100 underline">foto</a>`;
+
+          // Bentuk pesan yang lebih informatif dengan tautan
+          errorMessage = `Tidak dapat menghapus trip ini karena masih memiliki catatan terkait. Harap hapus ${rundownsLink} dan ${photosLink} terlebih dahulu.`;
+          isHtmlMessage = true; // Set flag ini agar notifikasi merender sebagai HTML
+        }
+        
+        showNotification(errorMessage, 'error', isHtmlMessage);
       }
     } catch (error) {
       console.error("Error deleting Trip:", error);
@@ -671,7 +690,12 @@ const UserTripsPage = () => {
               ) : (
                 <AlertCircle size={20} />
               )}
-              <span>{notification.message}</span>
+              {/* Render pesan sebagai HTML jika isHtml=true, jika tidak, sebagai teks biasa */}
+              {notification.isHtml ? (
+                <span dangerouslySetInnerHTML={{ __html: notification.message }} />
+              ) : (
+                <span>{notification.message}</span>
+              )}
             </div>
           </div>
         )}
