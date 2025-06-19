@@ -192,11 +192,11 @@ const TripTable = () => {
                   </div>
                 </div>
                 
-                <p className="text-gray-700 mb-6">
-                  Are you sure you want to delete trip <strong>"{tripToDelete?.title}"</strong>? 
+               <p className="text-gray-700 mb-6">
+                  Are you sure you want to delete trip <strong>{tripToDelete?.title}</strong>? 
                   This will permanently remove the trip and all associated data.
-                </p>
-                
+              </p>
+
                 <div className="flex gap-3">
                   <button
                     onClick={cancelDelete}

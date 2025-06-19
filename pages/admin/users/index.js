@@ -578,7 +578,7 @@ const UserTable = () => {
                 </div>
                 
                 <p className="text-gray-700 mb-6">
-                  Are you sure you want to update <strong>{editingUser?.name}</strong>'s information?
+                  Are you sure you want to update <strong>{editingUser?.name}</strong> information?
                 </p>
                 
                 <div className="flex gap-3">

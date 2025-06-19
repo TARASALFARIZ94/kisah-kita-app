@@ -12,7 +12,7 @@ import {
   Calendar, 
   Sparkles, 
   CheckCircle,
-  AlertCircle,
+  AlertCircle, // Icon for error/alert
   ArrowLeft 
 } from 'lucide-react';
 
@@ -35,28 +35,44 @@ const UserTripsPage = () => {
     destination: '',
     startDate: '',
     endDate: ''
-});
+  });
 
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [tripToDelete, setTripToDelete] = useState(null);
-  const [notification, setNotification] = useState(null);
+  
+  // State for temporary (flash) notifications
+  const [flashMessage, setFlashMessage] = useState(null); // { message: string, type: 'success' | 'error' }
+  // State for persistent banner error messages
+  const [bannerErrorMessage, setBannerErrorMessage] = useState(null); // { message: string, isHtml: boolean }
+
   const [showCreateConfirm, setShowCreateConfirm] = useState(false);
   const [showEditConfirm, setShowEditConfirm] = useState(false);
 
-  // showNotification sekarang juga bisa menerima HTML content
-  const showNotification = (message, type = 'success', isHtml = false) => {
-    setNotification({ message, type, isHtml });
-    setTimeout(() => setNotification(null), 7000); // Tampilkan notifikasi lebih lama untuk pesan error dengan link
+  // Function to show temporary (flash) messages
+  const showFlashMessage = (message, type = 'success') => {
+    setFlashMessage({ message, type });
+    setTimeout(() => setFlashMessage(null), 3000); // Disappear after 3 seconds
+  };
+
+  // Function to show persistent banner error messages
+  const showBannerError = (message, isHtml = false) => {
+    setBannerErrorMessage({ message, isHtml });
+  };
+
+  // Function to clear the banner error message
+  const clearBannerError = () => {
+    setBannerErrorMessage(null);
   };
 
   const fetchTrips = async () => {
     setLoading(true);
+    clearBannerError(); // Clear any existing banner error when fetching new data
     const token = getAuthToken();
     if (!token) {
-      showNotification('Authentication required. Please log in.', 'error');
+      showFlashMessage('Authentication required. Please log in.', 'error');
       setLoading(false);
       return;
     }
@@ -71,11 +87,11 @@ const UserTripsPage = () => {
       if (res.ok) {
         setTrips(data);
       } else {
-        showNotification(data.message || 'Failed to fetch trips.', 'error');
+        showFlashMessage(data.message || 'Failed to fetch trips.', 'error');
       }
     } catch (error) {
       console.error("Error fetching trips:", error);
-      showNotification('Network error. Failed to fetch trips.', 'error');
+      showFlashMessage('Network error. Failed to fetch trips.', 'error');
     } finally {
       setLoading(false);
     }
@@ -122,9 +138,10 @@ const UserTripsPage = () => {
     setShowCreateConfirm(false);
     setShowEditConfirm(false);
     setSubmitting(true);
+    clearBannerError(); // Clear any banner error on new submission attempt
     const token = getAuthToken();
     if (!token) {
-      showNotification('Authentication required. Please log in.', 'error');
+      showFlashMessage('Authentication required. Please log in.', 'error');
       setSubmitting(false);
       return;
     }
@@ -155,7 +172,7 @@ const UserTripsPage = () => {
         const result = await res.json();
         console.log("Trip saved successfully:", result);
         
-        showNotification(
+        showFlashMessage(
           editingTrip ? 'Trip updated successfully!' : 'Trip created successfully!',
           'success'
         );
@@ -165,11 +182,11 @@ const UserTripsPage = () => {
       } else {
         const errorData = await res.json();
         console.error("Failed to save Trip:", errorData);
-        showNotification(errorData.message || 'Failed to save Trip. Please try again.', 'error');
+        showFlashMessage(errorData.message || 'Failed to save Trip. Please try again.', 'error');
       }
     } catch (error) {
       console.error("Error saving Trip:", error);
-      showNotification('Network error. Please try again.', 'error');
+      showFlashMessage('Network error. Please try again.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -184,7 +201,7 @@ const UserTripsPage = () => {
     if (!tripToDelete) return;
     const token = getAuthToken();
     if (!token) {
-      showNotification('Authentication required. Please log in.', 'error');
+      showFlashMessage('Authentication required. Please log in.', 'error');
       setShowDeleteConfirm(false);
       return;
     }
@@ -199,34 +216,35 @@ const UserTripsPage = () => {
       });
       
       if (res.ok) {
-        showNotification('Trip deleted successfully!', 'success');
+        showFlashMessage('Trip deleted successfully!', 'success');
         await fetchTrips();
+        clearBannerError(); // Clear banner error on successful delete
       } else {
         const errorData = await res.json();
         console.error("Failed to delete Trip:", errorData);
 
-        // --- Logika Penanganan Error untuk dependensi yang lebih user-friendly ---
         let errorMessage = errorData.message || 'Failed to delete Trip. Please try again.';
         let isHtmlMessage = false;
 
         // Cek apakah pesan error dari API mengindikasikan dependensi Rundown atau Photo
         if (errorMessage.includes("Tidak dapat menghapus perjalanan") && errorMessage.includes("karena masih memiliki catatan terkait")) {
-          const tripId = tripToDelete.id; // Dapatkan ID trip yang gagal dihapus
+          const tripId = tripToDelete.id; 
 
           // Buat tautan ke halaman Rundown dan Photo
-          const rundownsLink = `<a href="/user/rundowns" class="text-blue-200 hover:text-blue-100 underline">rundown</a>`;
-          const photosLink = `<a href="/user/photos" class="text-blue-200 hover:text-blue-100 underline">foto</a>`;
+          const rundownsLink = `<a href="/user/trip/${tripId}/rundowns" class="text-white underline hover:opacity-80">rundown</a>`; // Adjusted for red background
+          const photosLink = `<a href="/user/trip/${tripId}/photos" class="text-white underline hover:opacity-80">foto</a>`; // Adjusted for red background
 
           // Bentuk pesan yang lebih informatif dengan tautan
           errorMessage = `Tidak dapat menghapus trip ini karena masih memiliki catatan terkait. Harap hapus ${rundownsLink} dan ${photosLink} terlebih dahulu.`;
-          isHtmlMessage = true; // Set flag ini agar notifikasi merender sebagai HTML
+          isHtmlMessage = true; 
+          showBannerError(errorMessage, isHtmlMessage); // Show as banner error
+        } else {
+          showFlashMessage(errorMessage, 'error'); // Show other errors as flash message
         }
-        
-        showNotification(errorMessage, 'error', isHtmlMessage);
       }
     } catch (error) {
       console.error("Error deleting Trip:", error);
-      showNotification('Network error. Please try again.', 'error');
+      showFlashMessage('Network error. Please try again.', 'error');
     } finally {
       setShowDeleteConfirm(false);
       setTripToDelete(null);
@@ -248,6 +266,7 @@ const UserTripsPage = () => {
     });
     setErrors({});
     setShowModal(true);
+    clearBannerError(); // Clear banner error when opening modal
   };
 
   const handleCloseModal = () => {
@@ -255,6 +274,7 @@ const UserTripsPage = () => {
     setEditingTrip(null);
     setFormData({ title: '', destination: '', startDate: '', endDate: '' });
     setErrors({});
+    clearBannerError(); // Clear banner error when closing modal
   };
 
   const handleInputChange = (e) => {
@@ -271,9 +291,8 @@ const UserTripsPage = () => {
     setFormData({ title: '', destination: '', startDate: '', endDate: '' });
     setErrors({});
     setShowModal(true);
+    clearBannerError(); // Clear banner error when opening modal
   };
-
-  
 
   useEffect(() => {
     fetchTrips();
@@ -281,7 +300,6 @@ const UserTripsPage = () => {
 
   if (loading) {
     return (
-      // Pastikan loader ini tetap terpusat di layar penuh saat UserLayout belum diterapkan
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
       </div>
@@ -289,15 +307,14 @@ const UserTripsPage = () => {
   }
 
   return (
-    <UserLayout> {/* Bungkus seluruh konten dengan UserLayout */}
-      <div className="p-6 md:p-12"> {/* Tambahkan padding ini karena UserLayout tidak menyediakannya */}
+    <UserLayout>
+      <div className="p-6 md:p-12">
         {/* Header */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-4"> {/* mb-4 for gap before error banner */}
           <div className="flex justify-between items-center">
             <div>
-    
               <h1 className="text-3xl font-bold text-gray-900 mb-2">My Trips</h1>
-              <p className="text-gray-600">Manage your personal travel plans.</p>
+              <p className="text-gray-600">Kelola rencana perjalanan Anda</p>
             </div>
             <button
               onClick={handleAddTrip}
@@ -308,6 +325,24 @@ const UserTripsPage = () => {
             </button>
           </div>
         </div>
+
+        {/* Error Banner (New element based on the image) */}
+        {bannerErrorMessage && (
+          <div className="bg-red-500 text-white rounded-lg shadow-lg p-4 mb-8 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <AlertCircle size={20} />
+              {/* Render pesan sebagai HTML jika isHtml=true, jika tidak, sebagai teks biasa */}
+              {bannerErrorMessage.isHtml ? (
+                <span dangerouslySetInnerHTML={{ __html: bannerErrorMessage.message }} />
+              ) : (
+                <span>{bannerErrorMessage.message}</span>
+              )}
+            </div>
+            <button onClick={clearBannerError} className="text-white hover:text-red-100 p-1 rounded-full">
+              <X size={18} />
+            </button>
+          </div>
+        )}
 
         {/* Trips Table */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
@@ -677,25 +712,20 @@ const UserTripsPage = () => {
           </div>
         )}
 
-        {/* Success/Error Notification */}
-        {notification && (
+        {/* Flash Notification (temporary, top-right) */}
+        {flashMessage && (
           <div className="fixed top-4 right-4 z-50">
             <div className={`px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 ${
-              notification.type === 'success' 
+              flashMessage.type === 'success' 
                 ? 'bg-green-500 text-white' 
                 : 'bg-red-500 text-white'
             }`}>
-              {notification.type === 'success' ? (
+              {flashMessage.type === 'success' ? (
                 <CheckCircle size={20} />
               ) : (
                 <AlertCircle size={20} />
               )}
-              {/* Render pesan sebagai HTML jika isHtml=true, jika tidak, sebagai teks biasa */}
-              {notification.isHtml ? (
-                <span dangerouslySetInnerHTML={{ __html: notification.message }} />
-              ) : (
-                <span>{notification.message}</span>
-              )}
+              <span>{flashMessage.message}</span>
             </div>
           </div>
         )}
